@@ -1,0 +1,327 @@
+# codex-local-doc-runtime
+
+`docrt` is a Windows-first local document runtime for Codex and other automation
+tools. It provides a stable non-interactive JSON CLI and Python package for
+DOCX, PDF, and XLSX processing.
+
+The project is designed so a fresh Windows machine with the required system
+tools can clone the repository, sync dependencies with `uv`, run diagnostics,
+and start using the `docrt` CLI without relying on a global Python command.
+
+## Features
+
+- Inspect `.docx` files with `python-docx`.
+- Convert `.docx` to PDF through Microsoft Word COM.
+- Inspect and render `.pdf` files with PyMuPDF.
+- Inspect `.xlsx` files with `openpyxl` and `pandas`.
+- Convert `.xlsx` to PDF through Microsoft Excel COM.
+- Emit one normalized JSON result from every CLI operation.
+- Write structured JSONL logs and failure diagnostics for every run.
+- Diagnose Python packages, Office COM, Poppler, and runtime paths with
+  `docrt doctor`.
+
+## Capability Boundary
+
+Current CLI capabilities:
+
+- analyze DOCX structure and text with `inspect-docx`
+- analyze PDF metadata, page geometry, and text layer status with `inspect-pdf`
+- render PDF pages to PNG with `render-pdf`
+- analyze XLSX workbook sheets and preview cell data with `inspect-xlsx`
+- export DOCX to PDF with `docx-to-pdf`
+- export XLSX to PDF with `xlsx-to-pdf`
+
+Current CLI does not directly edit existing DOCX, PDF, or XLSX files. For edit
+workflows, use `docrt` as the inspection, rendering, conversion, logging, and
+diagnostics layer, then apply edits through a separate document editing tool or
+future `docrt` edit commands.
+
+## Supported Scope
+
+Supported:
+
+- `.docx`
+- `.pdf`
+- `.xlsx`
+
+Not supported:
+
+- OCR
+- `.doc`
+- `.xls`
+- encrypted Office files
+- Office flows that require interactive dialogs
+
+## Requirements
+
+Required for all commands:
+
+- Windows
+- PowerShell
+- Git, or a ZIP download of this repository from GitHub
+- Internet access for first-time dependency installation
+- `uv`
+- Python 3.12+, installed and managed through `uv`
+
+Required for Office PDF export:
+
+- Microsoft Word for `docx-to-pdf`
+- Microsoft Excel for `xlsx-to-pdf`
+
+Required or recommended for PDF diagnostics/rendering workflows:
+
+- Poppler tools: `pdfinfo`, `pdftoppm`, `pdftocairo`
+
+Install `uv` before using this project:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Restart PowerShell after manual `uv` installation if the command is not
+immediately available.
+
+## Quick Start After Clone
+
+Use this path on a fresh Windows machine after installing the required system
+tools listed above.
+
+```powershell
+Set-Location D:\project\python
+git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
+Set-Location D:\project\python\codex-local-doc-runtime
+uv sync --dev
+uv run docrt doctor
+uv run pytest
+```
+
+## Using With Codex
+
+To make Codex use this runtime for local document analysis, give Codex an
+instruction like this in your project or thread:
+
+```text
+When working with local .docx, .pdf, or .xlsx files on Windows, use the
+codex-local-doc-runtime repository at D:\project\python\codex-local-doc-runtime.
+Before processing documents, run:
+
+Set-Location D:\project\python\codex-local-doc-runtime
+uv run docrt doctor
+
+Use these commands for document inspection and conversion:
+
+uv run docrt inspect-docx <path>
+uv run docrt docx-to-pdf <input> [output]
+uv run docrt inspect-pdf <path>
+uv run docrt render-pdf <input> [output-dir]
+uv run docrt inspect-xlsx <path>
+uv run docrt xlsx-to-pdf <input> [output]
+
+Do not assume OCR, .doc, .xls, encrypted Office files, or direct PDF editing are
+supported by docrt.
+```
+
+For durable Codex behavior across conversations, place the same instruction in
+your local `AGENTS.md` or project documentation. This repository supplies the
+CLI runtime; Codex still needs an explicit instruction to prefer it.
+
+## CLI Commands
+
+All commands print JSON to stdout, write a JSONL log, and return a fixed exit
+code.
+
+```powershell
+uv run docrt doctor
+uv run docrt inspect-docx path\to\file.docx
+uv run docrt docx-to-pdf path\to\file.docx
+uv run docrt inspect-pdf path\to\file.pdf
+uv run docrt render-pdf path\to\file.pdf
+uv run docrt inspect-xlsx path\to\file.xlsx
+uv run docrt xlsx-to-pdf path\to\file.xlsx
+```
+
+Common options:
+
+```powershell
+uv run docrt doctor --poppler-path D:\tools\poppler\bin
+uv run docrt docx-to-pdf input.docx output.pdf --timeout 30
+uv run docrt xlsx-to-pdf input.xlsx output.pdf --force-kill-office
+```
+
+`--force-kill-office` only enables force cleanup when the runtime config also
+allows it. Default cleanup only targets Office processes that appear to have
+been created by the current conversion task.
+
+## Output Rules
+
+Run ID:
+
+```text
+YYYYMMDD-HHMMSS-randomid
+```
+
+Default paths:
+
+```text
+outputs/
+logs/
+work/
+outputs/diagnostics/
+```
+
+Generated files:
+
+```text
+logs/{run_id}.jsonl
+outputs/diagnostics/{run_id}.diagnostic.json
+outputs/{input-stem}.pdf
+outputs/{input-stem}/page-{page:04d}.png
+outputs/{input-name}.inspect.json
+```
+
+These directories are local runtime outputs and are ignored by Git.
+
+## Result Shape
+
+Every operation returns the same JSON shape:
+
+```json
+{
+  "ok": true,
+  "operation": "doctor",
+  "input_path": null,
+  "output_path": null,
+  "backend": "doctor",
+  "run_id": "20260604-120000-abcdef",
+  "started_at": "2026-06-04T12:00:00.000Z",
+  "ended_at": "2026-06-04T12:00:00.100Z",
+  "duration_ms": 100,
+  "error_code": null,
+  "error_message": null,
+  "exception_type": null,
+  "traceback": null,
+  "recovery_actions": [],
+  "diagnostic_report_path": null,
+  "log_path": "logs/run.jsonl",
+  "data": {}
+}
+```
+
+## Configuration
+
+Configuration priority:
+
+1. CLI options
+2. environment variables
+3. `docrt.config.json`
+4. defaults
+
+Supported environment variables:
+
+- `POPPLER_PATH`
+- `DOCRT_TIMEOUT_SECONDS`
+- `DOCRT_ALLOW_FORCE_KILL_OFFICE`
+- `DOCRT_OUTPUTS_DIR`
+- `DOCRT_LOGS_DIR`
+- `DOCRT_WORK_DIR`
+- `DOCRT_DIAGNOSTICS_DIR`
+
+Example:
+
+```powershell
+$env:POPPLER_PATH = "D:\tools\poppler\bin"
+uv run docrt doctor
+```
+
+## Development
+
+```powershell
+uv sync --dev
+uv run ruff format .
+uv run ruff check .
+uv run pytest
+uv run pytest --cov=docrt
+```
+
+## CI
+
+GitHub Actions runs on `windows-latest` and verifies:
+
+- dependency sync through `uv`
+- formatting with `ruff format --check`
+- linting with `ruff check`
+- unit tests with `pytest`
+- coverage smoke test with `pytest --cov=docrt`
+
+Office desktop applications are not assumed in CI. Use `docrt doctor` locally to
+validate Word COM and Excel COM availability.
+
+## Troubleshooting
+
+If `uv` is not found, install it and restart PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+If Poppler is missing, install Poppler and pass its `bin` directory:
+
+```powershell
+uv run docrt doctor --poppler-path D:\tools\poppler\bin
+```
+
+If Word or Excel COM is unavailable, confirm that Microsoft Word or Excel is
+installed and can open normally in the current Windows user session:
+
+```powershell
+uv run docrt doctor
+```
+
+If a command fails, inspect the JSON result fields:
+
+- `error_code`
+- `error_message`
+- `exception_type`
+- `recovery_actions`
+- `diagnostic_report_path`
+- `log_path`
+
+If Windows reports path length risk, clone the repository into a shorter path,
+for example:
+
+```powershell
+Set-Location D:\src
+git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
+```
+
+## Project Structure
+
+```text
+codex-local-doc-runtime/
+  .github/workflows/ci.yml
+  docs/
+    adr/
+    architecture.md
+  examples/
+  src/docrt/
+  tests/
+  CHANGELOG.md
+  CONTRIBUTING.md
+  LICENSE
+  README.md
+  SECURITY.md
+  pyproject.toml
+  uv.lock
+```
+
+## Architecture Notes
+
+Read `docs/architecture.md` for the runtime design and `docs/adr/` for the main
+technical decisions.
+
+The most important boundaries are:
+
+- CLI output is a JSON contract.
+- Office COM conversion is isolated in subprocess workers.
+- Runtime outputs stay under ignored local directories.
+- `uv` is the supported environment and execution path.
