@@ -300,3 +300,28 @@ def test_run_task_rejects_unknown_task(tmp_path: Path):
         run_task_manifest(manifest_path, Config.load(project_root=tmp_path), "test-run")
 
     assert exc_info.value.error_code == ErrorCode.VALIDATION_FAILED
+
+
+def test_run_task_multi_step_error_contains_structured_error(tmp_path: Path):
+    manifest_path = tmp_path / "task.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "stop_on_error": True,
+                "tasks": [
+                    {
+                        "id": "read",
+                        "task": "read-docx",
+                        "input": str(tmp_path / "missing.docx"),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_task_manifest(manifest_path, Config.load(project_root=tmp_path), "test-run")
+
+    assert result["failed_count"] == 1
+    assert result["steps"][0]["error"]["error_code"] == ErrorCode.FILE_NOT_FOUND.value
+    assert result["steps"][0]["error"]["recovery_actions"]

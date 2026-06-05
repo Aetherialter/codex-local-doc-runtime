@@ -140,15 +140,19 @@ def _run_step(
         result = _execute_task(task, manifest, config, run_id)
     except Exception as exc:
         error_code = _classify(exc).value
-        return {
-            "id": step_id,
-            "task": task,
-            "ok": False,
+        error = {
             "error_code": error_code,
             "error_message": str(exc),
             "exception_type": type(exc).__name__,
             "traceback": tb.format_exc(),
             "recovery_actions": recovery_actions(error_code),
+        }
+        return {
+            "id": step_id,
+            "task": task,
+            "ok": False,
+            "error": error,
+            **error,
         }
     return {
         "id": step_id,

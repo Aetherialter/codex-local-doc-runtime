@@ -7,6 +7,7 @@ import fitz
 import pytest
 
 from docrt.config import Config
+from docrt.config_cli import config_set
 from docrt.models import ErrorCode
 from docrt.paths import ValidationError
 from docrt.pdf_annotate import annotate_pdf
@@ -136,3 +137,12 @@ def test_clean_all_deduplicates_nested_targets(
 
     planned_paths = [item["path"] for item in planned["files"]]
     assert planned_paths.count(str(cache_path)) == 1
+
+
+def test_config_set_supports_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = config_set("outputs", "custom-outputs")
+
+    assert result["key"] == "outputs_dir"
+    assert Config.load(project_root=tmp_path).outputs_dir == "custom-outputs"

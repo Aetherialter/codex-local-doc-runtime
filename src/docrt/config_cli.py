@@ -10,6 +10,15 @@ from docrt.models import ErrorCode
 from docrt.paths import ValidationError
 
 CONFIG_PATH = Path("docrt.config.json")
+KEY_ALIASES = {
+    "timeout": "default_timeout_seconds",
+    "outputs": "outputs_dir",
+    "logs": "logs_dir",
+    "work": "work_dir",
+    "diagnostics": "diagnostics_dir",
+    "poppler": "poppler_path",
+    "force_kill_office": "allow_force_kill_office",
+}
 
 
 def config_init(*, force: bool = False) -> dict[str, object]:
@@ -34,6 +43,7 @@ def config_show(config: Config) -> dict[str, object]:
 
 
 def config_set(key: str, value: str) -> dict[str, object]:
+    key = KEY_ALIASES.get(key, key)
     allowed = set(Config.__dataclass_fields__)
     if key not in allowed:
         raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unknown config key: {key}")
@@ -48,6 +58,9 @@ def config_set(key: str, value: str) -> dict[str, object]:
 
 
 def _coerce_value(key: str, value: str) -> object:
+    if key == "default_timeout_seconds":
+        timeout = int(value)
+        return timeout
     if key.endswith("_seconds"):
         return int(value)
     if key == "allow_force_kill_office":
