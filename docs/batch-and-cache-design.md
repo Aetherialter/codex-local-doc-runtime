@@ -7,6 +7,7 @@ the same local documents.
 
 ```powershell
 uv run docrt fingerprint path\to\file.docx
+uv run docrt batch-fingerprint path\to\a.docx path\to\b.xlsx
 uv run docrt cache-read path\to\file.docx
 uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
 uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
@@ -14,8 +15,8 @@ uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
 ```
 
-`fingerprint` uses the Rust core when available and falls back to Python when
-the native extension is not built.
+`fingerprint`, `batch-fingerprint`, and indexed `search` use the Rust core when
+available and fall back to Python when the native extension is not built.
 
 ## Cache Location
 

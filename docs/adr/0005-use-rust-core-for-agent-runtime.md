@@ -4,8 +4,8 @@
 
 `docrt` needs a stable CLI surface for Agent document workflows and a small set
 of performance-sensitive, safety-sensitive primitives that will be called often:
-file fingerprinting, path containment checks, JSON preflight validation, and
-future batch planning.
+file fingerprinting, batch fingerprinting, indexed search, path containment
+checks, JSON preflight validation, and batch planning.
 
 ## Decision
 
@@ -16,9 +16,10 @@ and falls back to pure Python when the native module is not built.
 
 ## Reasons
 
-Rust is a good fit for deterministic file hashing, path normalization, and
-manifest validation primitives. Python remains the better integration layer for
-Windows Office automation and the existing document libraries.
+Rust is a good fit for deterministic file hashing, batch file scanning, simple
+text search over existing indexes, path normalization, and manifest validation
+primitives. Python remains the better integration layer for Windows Office
+automation and the existing document libraries.
 
 ## Pros
 

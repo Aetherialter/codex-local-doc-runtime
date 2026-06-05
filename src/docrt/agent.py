@@ -58,6 +58,8 @@ def _commands() -> dict[str, list[str] | str]:
         ],
         "doctor": "uv run docrt doctor --agent --office-smoke",
         "read": [
+            "uv run docrt fingerprint <path>",
+            "uv run docrt batch-fingerprint <paths...>",
             "uv run docrt inspect-docx <path>",
             "uv run docrt read-docx <path>",
             "uv run docrt inspect-pdf <path>",

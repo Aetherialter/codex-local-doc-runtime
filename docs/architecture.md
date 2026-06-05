@@ -28,6 +28,8 @@ machine-readable results instead of interactive desktop workflows.
 - `docrt.office_worker`: subprocess entrypoint for Word and Excel COM work.
 - `docrt.office_process`: Office process snapshots and cleanup diagnostics.
 - `docrt.poppler`: Poppler tool discovery for auxiliary PDF diagnostics.
+- `docrt.core_bridge`: Optional Rust acceleration for hashing, batch
+  fingerprints, path checks, JSON preflight validation, and indexed search.
 - `docrt.agent`: Agent-facing configuration fragments and bootstrap command
   groups.
 

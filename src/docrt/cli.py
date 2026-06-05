@@ -7,7 +7,14 @@ from typing import Annotated
 import typer
 
 from docrt.agent import agent_config
-from docrt.cache_ops import batch_read, cache_read, fingerprint_file, index, search
+from docrt.cache_ops import (
+    batch_fingerprint,
+    batch_read,
+    cache_read,
+    fingerprint_file,
+    index,
+    search,
+)
 from docrt.config import Config
 from docrt.config_cli import config_init, config_set, config_show
 from docrt.doctor import doctor_report
@@ -635,6 +642,23 @@ def fingerprint_cmd(
     _emit(result)
 
 
+@app.command("batch-fingerprint")
+def batch_fingerprint_cmd(
+    paths: list[Path],
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "batch-fingerprint",
+        lambda _run_id, _cfg, _logger: batch_fingerprint(paths),
+        config=config,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
 @app.command("cache-read")
 def cache_read_cmd(
     path: Path,
@@ -719,7 +743,7 @@ def search_cmd(
         "search",
         lambda _run_id, cfg, _logger: search(query, cfg),
         config=config,
-        backend="python",
+        backend="core-bridge",
     )
     _emit(result)
 

@@ -33,7 +33,10 @@ jobs:
       - name: Set PyO3 Python
         shell: pwsh
         run: |
-          "PYO3_PYTHON=$((Resolve-Path .venv\Scripts\python.exe).Path)" >> $env:GITHUB_ENV
+          $Python = (Resolve-Path .venv\Scripts\python.exe).Path
+          $PythonBase = (& $Python -c "import sys; print(sys.base_prefix)").Trim()
+          "PYO3_PYTHON=$Python" >> $env:GITHUB_ENV
+          $PythonBase >> $env:GITHUB_PATH
 
       - name: Check formatting
         run: uv run ruff format --check .
@@ -61,6 +64,7 @@ jobs:
         run: |
           uv run docrt doctor --agent
           uv run docrt agent-config
+          uv run docrt batch-fingerprint examples\fixtures\sample.docx examples\fixtures\sample.xlsx
           uv run docrt validate-task examples\tasks\xlsx-patch-verify.json
           uv run docrt explain-task examples\tasks\xlsx-patch-verify.json
           uv run docrt storage-report

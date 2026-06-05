@@ -46,8 +46,15 @@ def test_core_bridge_python_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     assert core_bridge.backend() == "python"
     assert core_bridge.fingerprint(sample)["backend"] == "python"
+    assert core_bridge.fingerprint_many([sample])["backend"] == "python"
     assert core_bridge.validate_basic_json_object('{"fallback": true}') is True
     assert core_bridge.plan_batch([sample])["backend"] == "python"
+    assert (
+        core_bridge.search_records(
+            [{"path": str(sample), "text": "fallback search target"}], "target"
+        )["backend"]
+        == "python"
+    )
 
 
 def test_core_bridge_batch_planner(tmp_path: Path) -> None:
@@ -59,3 +66,31 @@ def test_core_bridge_batch_planner(tmp_path: Path) -> None:
     assert result["backend"] in {"python", "rust"}
     assert result["count"] == 2
     assert result["items"][0]["index"] == 0
+
+
+def test_core_bridge_batch_fingerprint(tmp_path: Path) -> None:
+    first = tmp_path / "first.docx"
+    second = tmp_path / "second.xlsx"
+    first.write_text("first", encoding="utf-8")
+    second.write_text("second", encoding="utf-8")
+
+    result = core_bridge.fingerprint_many([first, second])
+
+    assert result["backend"] in {"python", "rust"}
+    assert result["count"] == 2
+    assert result["items"][0]["sha256"]
+    assert result["items"][0]["path"] == str(first)
+
+
+def test_core_bridge_search_records() -> None:
+    records = [
+        {"path": "a.docx", "text": "alpha needle omega"},
+        {"path": "b.docx", "text": "plain text"},
+    ]
+
+    result = core_bridge.search_records(records, "needle")
+
+    assert result["backend"] in {"python", "rust"}
+    assert result["count"] == 1
+    assert result["matches"][0]["path"] == "a.docx"
+    assert "needle" in result["matches"][0]["preview"]

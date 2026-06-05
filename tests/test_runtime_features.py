@@ -7,6 +7,7 @@ import fitz
 import pytest
 
 from docrt.agent import agent_config
+from docrt.cache_ops import search
 from docrt.config import Config
 from docrt.config_cli import config_set
 from docrt.models import ErrorCode
@@ -163,3 +164,22 @@ def test_agent_config_contains_codex_runtime_fragment(
     assert "uv run docrt doctor --agent --office-smoke" in result["agents_md"]
     assert "AGENTS.md" in result["agents_md"]
     assert "explain-task" in result["commands"]["task"][1]
+
+
+def test_search_uses_core_bridge_result_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    index_path = tmp_path / "work" / "index" / "documents.json"
+    index_path.parent.mkdir(parents=True)
+    index_path.write_text(
+        json.dumps({"records": [{"path": "sample.docx", "text": "agent search target"}]}),
+        encoding="utf-8",
+    )
+
+    result = search("target", config)
+
+    assert result["backend"] in {"python", "rust"}
+    assert result["count"] == 1
+    assert result["matches"][0]["path"] == "sample.docx"

@@ -21,8 +21,8 @@ and start using the `docrt` CLI without relying on a global Python command.
   `docrt doctor`.
 - Generate Codex/Agent integration instructions with `docrt agent-config`.
 - Check Agent readiness with `docrt doctor --agent`.
-- Use an optional Rust core for hashing, file fingerprints, path checks, and
-  JSON preflight validation.
+- Use an optional Rust core for hashing, batch fingerprints, indexed search,
+  path checks, and JSON preflight validation.
 - Validate patch, task, and result JSON through committed schemas.
 - Run replayable single-step or multi-step Agent task manifests.
 - Report storage usage and clean generated logs, outputs, work files, caches,
@@ -44,7 +44,8 @@ Current CLI capabilities:
 - verify and compare DOCX/XLSX changes with structured diffs
 - annotate PDFs with safe additive annotations
 - validate JSON schemas for patches, tasks, and command results
-- fingerprint, cache-read, batch-read, index, and search local documents
+- fingerprint, batch-fingerprint, cache-read, batch-read, index, and search
+  local documents
 - execute single-step or multi-step document operations from task manifests
 - explain task manifests before execution with `explain-task`
 - inspect and clean local runtime artifacts without deleting outside the
@@ -130,7 +131,8 @@ uv run docrt doctor --agent --office-smoke
 ```
 
 If the Rust extension is not built, `docrt` falls back to the Python core for
-hashing, path safety checks, and JSON preflight validation.
+hashing, batch fingerprints, path safety checks, indexed search, and JSON
+preflight validation.
 
 ## Using With Codex
 
@@ -215,6 +217,7 @@ uv run docrt validate-patch path\to\patch.json
 uv run docrt validate-task path\to\task.json
 uv run docrt explain-task path\to\task.json
 uv run docrt fingerprint path\to\file.docx
+uv run docrt batch-fingerprint path\to\a.docx path\to\b.xlsx
 uv run docrt cache-read path\to\file.docx
 uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
 uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
@@ -333,6 +336,7 @@ uv run ruff check .
 uv run pytest
 uv run pytest --cov=docrt
 $env:PYO3_PYTHON = (Resolve-Path .venv\Scripts\python.exe).Path
+$env:PATH = "$((& $env:PYO3_PYTHON -c 'import sys; print(sys.base_prefix)').Trim());$env:PATH"
 cargo fmt --check --manifest-path crates\docrt-core\Cargo.toml
 cargo clippy --manifest-path crates\docrt-core\Cargo.toml -- -D warnings
 cargo test --manifest-path crates\docrt-core\Cargo.toml

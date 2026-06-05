@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from docrt.config import Config
-from docrt.core_bridge import fingerprint, plan_batch
+from docrt.core_bridge import fingerprint, fingerprint_many, plan_batch, search_records
 from docrt.jsonutil import dump_file
 from docrt.paths import SUPPORTED_EXTENSIONS, validate_input_path
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
@@ -14,6 +14,11 @@ from docrt.read_ops import read_docx, read_pdf, read_xlsx
 def fingerprint_file(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, SUPPORTED_EXTENSIONS)
     return fingerprint(input_path)
+
+
+def batch_fingerprint(paths: list[str | Path]) -> dict[str, object]:
+    input_paths = [validate_input_path(path, SUPPORTED_EXTENSIONS) for path in paths]
+    return fingerprint_many(input_paths)
 
 
 def cache_read(path: str | Path, config: Config) -> dict[str, object]:
@@ -75,14 +80,19 @@ def index(paths: list[str | Path], config: Config) -> dict[str, object]:
 def search(query: str, config: Config) -> dict[str, object]:
     index_path = config.work_path / "index" / "documents.json"
     if not index_path.exists():
-        return {"query": query, "index_path": str(index_path), "matches": []}
+        return {"query": query, "index_path": str(index_path), "backend": "none", "matches": []}
     data = json.loads(index_path.read_text(encoding="utf-8"))
-    matches = []
-    for record in data.get("records", []):
-        text = str(record.get("text", ""))
-        if query.lower() in text.lower():
-            matches.append({"path": record.get("path"), "preview": _preview(text, query)})
-    return {"query": query, "index_path": str(index_path), "matches": matches}
+    records = data.get("records", [])
+    if not isinstance(records, list):
+        records = []
+    result = search_records(records, query)
+    return {
+        "query": query,
+        "index_path": str(index_path),
+        "backend": result["backend"],
+        "count": result["count"],
+        "matches": result["matches"],
+    }
 
 
 def _reader_for(path: str | Path) -> Callable[[str | Path], dict[str, object]]:
@@ -94,12 +104,3 @@ def _reader_for(path: str | Path) -> Callable[[str | Path], dict[str, object]]:
     if suffix == ".xlsx":
         return read_xlsx
     raise ValueError(f"Unsupported format: {suffix}")
-
-
-def _preview(text: str, query: str, size: int = 120) -> str:
-    position = text.lower().find(query.lower())
-    if position < 0:
-        return text[:size]
-    start = max(0, position - size // 2)
-    end = min(len(text), position + len(query) + size // 2)
-    return text[start:end]

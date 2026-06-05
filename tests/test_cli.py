@@ -93,3 +93,22 @@ def test_explain_task_command_outputs_json(tmp_path: Path, monkeypatch):
     assert payload["ok"] is True
     assert payload["operation"] == "explain-task"
     assert payload["data"]["reads"] == ["sample.docx"]
+
+
+def test_batch_fingerprint_command_outputs_json(tmp_path: Path):
+    docx_path = tmp_path / "sample.docx"
+    xlsx_path = tmp_path / "sample.xlsx"
+    document = Document()
+    document.add_paragraph("hello docx")
+    document.save(docx_path)
+    workbook = openpyxl.Workbook()
+    workbook.save(xlsx_path)
+
+    result = runner.invoke(app, ["batch-fingerprint", str(docx_path), str(xlsx_path)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "batch-fingerprint"
+    assert payload["data"]["count"] == 2
+    assert payload["data"]["backend"] in {"python", "rust"}

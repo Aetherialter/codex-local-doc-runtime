@@ -61,6 +61,22 @@ def fingerprint(path: str | Path) -> dict[str, Any]:
     }
 
 
+def fingerprint_many(paths: list[str | Path]) -> dict[str, Any]:
+    raw_paths = [str(Path(path)) for path in paths]
+    if _rust_core is not None and hasattr(_rust_core, "fingerprint_many"):
+        return json.loads(str(_rust_core.fingerprint_many(json.dumps(raw_paths))))
+    items = []
+    for path in raw_paths:
+        item = fingerprint(path)
+        item["path"] = path
+        items.append(item)
+    return {
+        "backend": "python",
+        "count": len(items),
+        "items": items,
+    }
+
+
 def is_path_within_root(root: str | Path, path: str | Path) -> bool:
     if _rust_core is not None:
         return bool(_rust_core.is_path_within_root(str(root), str(path)))
@@ -106,3 +122,34 @@ def plan_batch(paths: list[str | Path]) -> dict[str, Any]:
             for index, path in enumerate(raw_paths)
         ],
     }
+
+
+def search_records(
+    records: list[dict[str, Any]], query: str, preview_size: int = 120
+) -> dict[str, Any]:
+    if _rust_core is not None and hasattr(_rust_core, "search_records"):
+        return json.loads(
+            str(_rust_core.search_records(json.dumps({"records": records}), query, preview_size))
+        )
+    matches = []
+    for record in records:
+        text = str(record.get("text", ""))
+        if query.lower() in text.lower():
+            matches.append(
+                {"path": record.get("path"), "preview": _preview(text, query, preview_size)}
+            )
+    return {
+        "backend": "python",
+        "query": query,
+        "count": len(matches),
+        "matches": matches,
+    }
+
+
+def _preview(text: str, query: str, size: int = 120) -> str:
+    position = text.lower().find(query.lower())
+    if position < 0:
+        return text[:size]
+    start = max(0, position - size // 2)
+    end = min(len(text), position + len(query) + size // 2)
+    return text[start:end]
