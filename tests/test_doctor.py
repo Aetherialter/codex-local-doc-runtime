@@ -16,6 +16,16 @@ def test_doctor_report_office_smoke_shape():
     assert report["office_smoke"]["interactive_dialogs_checked"] is False
 
 
+def test_doctor_report_office_smoke_uses_dispatch_checks(monkeypatch):
+    monkeypatch.setattr("docrt.doctor.check_word_com", lambda: True)
+    monkeypatch.setattr("docrt.doctor.check_excel_com", lambda: False)
+
+    report = doctor_report(Config.load(), office_smoke=True)
+
+    assert report["office_smoke"]["word_dispatch"] is True
+    assert report["office_smoke"]["excel_dispatch"] is False
+
+
 def test_poppler_lookup_returns_required_tools():
     tools = find_poppler_tools(Config.load())
     assert set(tools) == {"pdfinfo", "pdftoppm", "pdftocairo"}

@@ -121,3 +121,18 @@ def test_storage_report_and_clean_dry_run(tmp_path: Path, monkeypatch: pytest.Mo
     assert planned["dry_run"] is True
     assert planned["planned_count"] == 1
     assert log_path.exists()
+
+
+def test_clean_all_deduplicates_nested_targets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    cache_path = tmp_path / "work" / "cache" / "cache.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text("{}", encoding="utf-8")
+
+    planned = clean(config, all_targets=True)
+
+    planned_paths = [item["path"] for item in planned["files"]]
+    assert planned_paths.count(str(cache_path)) == 1

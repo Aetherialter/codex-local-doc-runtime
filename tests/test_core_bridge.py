@@ -47,3 +47,15 @@ def test_core_bridge_python_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert core_bridge.backend() == "python"
     assert core_bridge.fingerprint(sample)["backend"] == "python"
     assert core_bridge.validate_basic_json_object('{"fallback": true}') is True
+    assert core_bridge.plan_batch([sample])["backend"] == "python"
+
+
+def test_core_bridge_batch_planner(tmp_path: Path) -> None:
+    first = tmp_path / "first.docx"
+    second = tmp_path / "second.xlsx"
+
+    result = core_bridge.plan_batch([first, second])
+
+    assert result["backend"] in {"python", "rust"}
+    assert result["count"] == 2
+    assert result["items"][0]["index"] == 0

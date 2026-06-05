@@ -88,3 +88,21 @@ def validate_basic_json_object(json_text: str) -> bool:
     if not isinstance(value, dict):
         raise ValidationError(ErrorCode.VALIDATION_FAILED, "JSON root must be an object")
     return True
+
+
+def plan_batch(paths: list[str | Path]) -> dict[str, Any]:
+    raw_paths = [str(path) for path in paths]
+    if _rust_core is not None and hasattr(_rust_core, "plan_batch"):
+        return json.loads(str(_rust_core.plan_batch(json.dumps(raw_paths))))
+    return {
+        "backend": "python",
+        "count": len(raw_paths),
+        "items": [
+            {
+                "index": index,
+                "path": path,
+                "normalized_path": normalize_slashes(path),
+            }
+            for index, path in enumerate(raw_paths)
+        ],
+    }

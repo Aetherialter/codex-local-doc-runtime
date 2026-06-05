@@ -80,6 +80,29 @@ fn validate_basic_json_object(json_text: &str) -> PyResult<bool> {
     Ok(true)
 }
 
+#[pyfunction]
+fn plan_batch(paths_json: &str) -> PyResult<String> {
+    let paths: Vec<String> = serde_json::from_str(paths_json)
+        .map_err(|exc| PyValueError::new_err(format!("Invalid paths JSON: {exc}")))?;
+    let planned: Vec<serde_json::Value> = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            json!({
+                "index": index,
+                "path": path,
+                "normalized_path": normalize_slashes(path),
+            })
+        })
+        .collect();
+    Ok(json!({
+        "backend": "rust",
+        "count": planned.len(),
+        "items": planned,
+    })
+    .to_string())
+}
+
 #[pymodule]
 fn docrt_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
@@ -88,5 +111,6 @@ fn docrt_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_path_within_root, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_slashes, m)?)?;
     m.add_function(wrap_pyfunction!(validate_basic_json_object, m)?)?;
+    m.add_function(wrap_pyfunction!(plan_batch, m)?)?;
     Ok(())
 }

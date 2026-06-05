@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from docrt.config import Config
-from docrt.core_bridge import fingerprint
+from docrt.core_bridge import fingerprint, plan_batch
 from docrt.jsonutil import dump_file
 from docrt.paths import SUPPORTED_EXTENSIONS, validate_input_path
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
@@ -40,11 +40,13 @@ def cache_read(path: str | Path, config: Config) -> dict[str, object]:
 def batch_read(
     paths: list[str | Path], config: Config, *, use_cache: bool = False
 ) -> dict[str, object]:
+    plan = plan_batch(paths)
     results = []
-    for path in paths:
+    for item in plan["items"]:
+        path = item["path"]
         result = cache_read(path, config) if use_cache else _reader_for(Path(path))(path)
         results.append({"path": str(path), "ok": True, "result": result})
-    return {"count": len(results), "results": results}
+    return {"count": len(results), "plan": plan, "results": results}
 
 
 def batch_inspect(paths: list[str | Path], config: Config) -> dict[str, object]:

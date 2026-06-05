@@ -60,9 +60,14 @@ def clean(
         datetime.now(UTC) - timedelta(days=older_than_days) if older_than_days is not None else None
     )
     files = []
+    seen_files: set[Path] = set()
     for target in selected:
         _ensure_safe_target(target.path)
         for path in _iter_files(target.path):
+            resolved_path = path.resolve()
+            if resolved_path in seen_files:
+                continue
+            seen_files.add(resolved_path)
             if cutoff and _mtime(path) >= cutoff:
                 continue
             files.append({"target": target.name, "path": str(path), "bytes": path.stat().st_size})
@@ -109,7 +114,7 @@ def _selected_targets(
 ) -> list[CleanTarget]:
     targets = _all_targets(config)
     if all_targets:
-        return targets
+        return _dedupe_targets(targets)
     selected_names = {
         name
         for name, enabled in {
@@ -122,7 +127,19 @@ def _selected_targets(
         }.items()
         if enabled
     }
-    return [target for target in targets if target.name in selected_names]
+    return _dedupe_targets([target for target in targets if target.name in selected_names])
+
+
+def _dedupe_targets(targets: list[CleanTarget]) -> list[CleanTarget]:
+    result: list[CleanTarget] = []
+    seen: set[Path] = set()
+    for target in targets:
+        resolved = target.path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        result.append(target)
+    return result
 
 
 def _ensure_safe_target(path: Path) -> None:
