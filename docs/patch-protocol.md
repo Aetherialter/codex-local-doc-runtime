@@ -1,0 +1,109 @@
+# Patch Protocol
+
+Patch commands apply explicit JSON operations to a copy of a document. They do
+not overwrite the input file.
+
+## DOCX Patch
+
+Command:
+
+```powershell
+uv run docrt patch-docx input.docx patch.json output.docx
+```
+
+Patch shape:
+
+```json
+{
+  "document_type": "docx",
+  "operations": [
+    {
+      "type": "replace_text",
+      "find": "old text",
+      "replace": "new text"
+    },
+    {
+      "type": "replace_paragraph",
+      "paragraph_index": 0,
+      "text": "replacement paragraph"
+    },
+    {
+      "type": "replace_table_cell",
+      "table_index": 0,
+      "row_index": 1,
+      "column_index": 0,
+      "text": "replacement cell"
+    }
+  ]
+}
+```
+
+Supported DOCX operations:
+
+- `replace_text`
+- `replace_paragraph`
+- `replace_table_cell`
+
+## XLSX Patch
+
+Command:
+
+```powershell
+uv run docrt patch-xlsx input.xlsx patch.json output.xlsx
+```
+
+Patch shape:
+
+```json
+{
+  "document_type": "xlsx",
+  "operations": [
+    {
+      "type": "set_cell",
+      "sheet": "Summary",
+      "cell": "B2",
+      "value": "Ready"
+    },
+    {
+      "type": "set_range_values",
+      "sheet": "Summary",
+      "start_cell": "A4",
+      "values": [["Name", "Value"], ["Count", 3]]
+    },
+    {
+      "type": "add_sheet",
+      "name": "Notes"
+    },
+    {
+      "type": "rename_sheet",
+      "old_name": "Notes",
+      "new_name": "Review"
+    }
+  ]
+}
+```
+
+Supported XLSX operations:
+
+- `set_cell`
+- `set_range_values`
+- `add_sheet`
+- `rename_sheet`
+
+## Result
+
+Patch commands return the normal JSON result shape. The `data` field contains:
+
+- `input_path`
+- `patch_path`
+- `output_path`
+- `patch_summary`
+- `verification`
+
+The `verification` field is a lightweight read-back summary. For deeper checks,
+run:
+
+```powershell
+uv run docrt verify-docx before.docx after.docx
+uv run docrt verify-xlsx before.xlsx after.xlsx
+```

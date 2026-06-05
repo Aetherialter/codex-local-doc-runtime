@@ -1,9 +1,16 @@
 # Examples
 
-This directory is reserved for small, non-sensitive example workflows.
+This directory contains small, non-sensitive example workflows and fixtures.
 
 The runtime output directories are ignored by Git, so generated files should be
 created under `outputs/` or `work/` during local testing.
+
+## Files
+
+- `fixtures/sample.docx`: DOCX inspection and DOCX to PDF smoke fixture.
+- `fixtures/sample.pdf`: PDF inspection and rendering smoke fixture.
+- `fixtures/sample.xlsx`: XLSX inspection and XLSX to PDF smoke fixture.
+- `run-smoke.md`: full local smoke workflow.
 
 ## Smoke Test Workflow
 

@@ -30,11 +30,14 @@ Current CLI capabilities:
 - analyze XLSX workbook sheets and preview cell data with `inspect-xlsx`
 - export DOCX to PDF with `docx-to-pdf`
 - export XLSX to PDF with `xlsx-to-pdf`
+- read DOCX/PDF/XLSX into a unified `content_blocks` JSON protocol
+- patch DOCX/XLSX through explicit JSON patch files
+- verify DOCX/XLSX changes with lightweight read-back summaries
+- execute a single document operation from a task manifest
 
-Current CLI does not directly edit existing DOCX, PDF, or XLSX files. For edit
-workflows, use `docrt` as the inspection, rendering, conversion, logging, and
-diagnostics layer, then apply edits through a separate document editing tool or
-future `docrt` edit commands.
+Current CLI edits DOCX and XLSX only through explicit patch JSON files and never
+overwrites the input document by default. PDF original-content editing is not
+supported.
 
 ## Supported Scope
 
@@ -72,14 +75,15 @@ Required or recommended for PDF diagnostics/rendering workflows:
 
 - Poppler tools: `pdfinfo`, `pdftoppm`, `pdftocairo`
 
-Install `uv` before using this project:
+Install Git and `uv` before using this project:
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+winget install --id Git.Git -e
+winget install --id astral-sh.uv -e
 ```
 
-Restart PowerShell after manual `uv` installation if the command is not
-immediately available.
+Restart PowerShell after installation if `git` or `uv` is not immediately
+available.
 
 ## Quick Start After Clone
 
@@ -97,8 +101,11 @@ uv run pytest
 
 ## Using With Codex
 
-To make Codex use this runtime for local document analysis, give Codex an
-instruction like this in your project or thread:
+For durable Codex behavior across conversations, read
+`docs/codex-integration.md` and copy `examples/AGENTS.template.md` into your
+target project as `AGENTS.md`.
+
+Minimal instruction:
 
 ```text
 When working with local .docx, .pdf, or .xlsx files on Windows, use the
@@ -110,20 +117,24 @@ uv run docrt doctor
 
 Use these commands for document inspection and conversion:
 
-uv run docrt inspect-docx <path>
+uv run docrt inspect-docx <path> [--output <json>]
+uv run docrt read-docx <path> [--output <json>]
+uv run docrt patch-docx <input> <patch.json> <output>
+uv run docrt verify-docx <before> <after>
 uv run docrt docx-to-pdf <input> [output]
-uv run docrt inspect-pdf <path>
+uv run docrt inspect-pdf <path> [--output <json>]
+uv run docrt read-pdf <path> [--output <json>]
 uv run docrt render-pdf <input> [output-dir]
-uv run docrt inspect-xlsx <path>
+uv run docrt inspect-xlsx <path> [--output <json>]
+uv run docrt read-xlsx <path> [--output <json>]
+uv run docrt patch-xlsx <input> <patch.json> <output>
+uv run docrt verify-xlsx <before> <after>
 uv run docrt xlsx-to-pdf <input> [output]
+uv run docrt run-task <task.json>
 
 Do not assume OCR, .doc, .xls, encrypted Office files, or direct PDF editing are
 supported by docrt.
 ```
-
-For durable Codex behavior across conversations, place the same instruction in
-your local `AGENTS.md` or project documentation. This repository supplies the
-CLI runtime; Codex still needs an explicit instruction to prefer it.
 
 ## CLI Commands
 
@@ -133,11 +144,22 @@ code.
 ```powershell
 uv run docrt doctor
 uv run docrt inspect-docx path\to\file.docx
+uv run docrt inspect-docx path\to\file.docx --output outputs\file.docx.inspect.json
+uv run docrt read-docx path\to\file.docx --output outputs\file.docx.read.json
+uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx
+uv run docrt verify-docx path\to\file.docx outputs\file.patched.docx
 uv run docrt docx-to-pdf path\to\file.docx
 uv run docrt inspect-pdf path\to\file.pdf
+uv run docrt inspect-pdf path\to\file.pdf --output outputs\file.pdf.inspect.json
+uv run docrt read-pdf path\to\file.pdf --output outputs\file.pdf.read.json
 uv run docrt render-pdf path\to\file.pdf
 uv run docrt inspect-xlsx path\to\file.xlsx
+uv run docrt inspect-xlsx path\to\file.xlsx --output outputs\file.xlsx.inspect.json
+uv run docrt read-xlsx path\to\file.xlsx --output outputs\file.xlsx.read.json
+uv run docrt patch-xlsx path\to\file.xlsx path\to\patch.json outputs\file.patched.xlsx
+uv run docrt verify-xlsx path\to\file.xlsx outputs\file.patched.xlsx
 uv run docrt xlsx-to-pdf path\to\file.xlsx
+uv run docrt run-task path\to\task.json
 ```
 
 Common options:
@@ -243,6 +265,11 @@ uv run pytest
 uv run pytest --cov=docrt
 ```
 
+## Examples
+
+The `examples/fixtures/` directory contains small non-sensitive sample files.
+Run the full local smoke workflow from `examples/run-smoke.md`.
+
 ## CI
 
 GitHub Actions runs on `windows-latest` and verifies:
@@ -318,6 +345,13 @@ codex-local-doc-runtime/
 
 Read `docs/architecture.md` for the runtime design and `docs/adr/` for the main
 technical decisions.
+
+Read `docs/codex-integration.md` for Agent routing rules and failure-handling
+guidance.
+
+Read `docs/patch-protocol.md` for DOCX/XLSX patch JSON operations.
+
+Read `docs/task-manifest.md` for replayable Agent task manifests.
 
 The most important boundaries are:
 
