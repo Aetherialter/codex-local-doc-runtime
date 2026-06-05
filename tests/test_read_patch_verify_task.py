@@ -361,7 +361,9 @@ def test_explain_task_manifest_reports_agent_effects(tmp_path: Path):
 
     assert result["task_count"] == 2
     assert str(input_path) in result["reads"]
+    assert "${steps.patch.output_path}" not in result["reads"]
     assert str(output_path) in result["writes"]
+    assert str(output_path) in result["steps"][1]["reads"]
     assert str(patch_path) in result["patches"]
     assert result["requires_office_com"] is False
     assert result["supports_dry_run"] is True

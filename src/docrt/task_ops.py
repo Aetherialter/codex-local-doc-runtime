@@ -289,6 +289,7 @@ def _task_plan(task: str, manifest: dict[str, Any]) -> dict[str, object]:
 def _manifest_steps(manifest: dict[str, Any]) -> list[dict[str, object]]:
     if isinstance(manifest.get("tasks"), list):
         steps = []
+        context: dict[str, dict[str, Any]] = {}
         for index, raw_step in enumerate(manifest["tasks"]):
             if not isinstance(raw_step, dict):
                 raise ValidationError(
@@ -297,7 +298,12 @@ def _manifest_steps(manifest: dict[str, Any]) -> list[dict[str, object]]:
             task = _require_string(raw_step, "task")
             if task not in SUPPORTED_TASKS:
                 raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unsupported task: {task}")
-            steps.append(_explain_step(raw_step, index=index))
+            resolved_step = _resolve_refs(raw_step, context)
+            step = _explain_step(resolved_step, index=index)
+            steps.append(step)
+            step_id = raw_step.get("id")
+            if isinstance(step_id, str):
+                context[step_id] = _explain_step_context(step)
         return steps
     task = _require_string(manifest, "task")
     if task not in SUPPORTED_TASKS:
@@ -374,6 +380,17 @@ def _unique(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _explain_step_context(step: dict[str, object]) -> dict[str, Any]:
+    context: dict[str, Any] = dict(step)
+    writes = step.get("writes")
+    generates = step.get("generates")
+    if isinstance(writes, list) and writes:
+        context["output_path"] = writes[0]
+    if isinstance(generates, list) and generates:
+        context["generated_path"] = generates[0]
+    return context
 
 
 def _resolve_refs(value: Any, context: dict[str, dict[str, Any]]) -> Any:
