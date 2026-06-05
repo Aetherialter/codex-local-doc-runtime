@@ -1,0 +1,19 @@
+{
+  "stop_on_error": true,
+  "tasks": [
+    {
+      "id": "patch",
+      "task": "patch-xlsx",
+      "input": "examples/fixtures/sample.xlsx",
+      "patch": "examples/patches/xlsx-replace.json",
+      "output": "outputs/examples/sample.patched.xlsx"
+    },
+    {
+      "id": "verify",
+      "task": "verify-xlsx",
+      "before": "examples/fixtures/sample.xlsx",
+      "after": "${steps.patch.output_path}",
+      "expect": "examples/patches/xlsx-replace.json"
+    }
+  ]
+}

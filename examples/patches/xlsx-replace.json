@@ -1,0 +1,12 @@
+{
+  "document_type": "xlsx",
+  "operations": [
+    {
+      "type": "set_cell",
+      "sheet": "Summary",
+      "cell": "B2",
+      "expected_value": "Ready",
+      "value": "Reviewed"
+    }
+  ]
+}

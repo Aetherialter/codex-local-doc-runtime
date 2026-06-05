@@ -24,14 +24,34 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install dependencies
         run: uv sync --dev
+
+      - name: Set PyO3 Python
+        shell: pwsh
+        run: |
+          "PYO3_PYTHON=$((Resolve-Path .venv\Scripts\python.exe).Path)" >> $env:GITHUB_ENV
 
       - name: Check formatting
         run: uv run ruff format --check .
 
       - name: Lint
         run: uv run ruff check .
+
+      - name: Rust format
+        run: cargo fmt --check --manifest-path crates\docrt-core\Cargo.toml
+
+      - name: Rust lint
+        run: cargo clippy --manifest-path crates\docrt-core\Cargo.toml -- -D warnings
+
+      - name: Rust test
+        run: cargo test --manifest-path crates\docrt-core\Cargo.toml
+
+      - name: Build Rust extension
+        run: uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
 
       - name: Test
         run: uv run pytest

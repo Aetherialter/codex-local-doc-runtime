@@ -5,6 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from docrt import core_bridge
 from docrt.config import Config
 
 PYTHON_PACKAGES = {
@@ -75,26 +76,33 @@ def find_poppler_tools(config: Config) -> dict[str, str | None]:
     return tools
 
 
-def doctor_report(config: Config) -> dict[str, object]:
+def doctor_report(config: Config, *, office_smoke: bool = False) -> dict[str, object]:
     packages = {
         package: {"module": module, "available": check_import(module)}
         for package, module in PYTHON_PACKAGES.items()
     }
+    word_available = check_word_com()
+    excel_available = check_excel_com()
     poppler = find_poppler_tools(config)
-    return {
+    report: dict[str, object] = {
         "python": {
             "executable": sys.executable,
             "version": sys.version,
         },
         "packages": packages,
         "office": {
-            "word_com_available": check_word_com(),
-            "excel_com_available": check_excel_com(),
+            "word_com_available": word_available,
+            "excel_com_available": excel_available,
         },
         "poppler": {
             "tools": poppler,
             "available": all(poppler.values()),
             "configured_path": config.poppler_path,
+        },
+        "core": {
+            "backend": core_bridge.backend(),
+            "rust_available": core_bridge.rust_available(),
+            "version": core_bridge.version(),
         },
         "paths": {
             "cwd": str(Path.cwd().resolve().absolute()),
@@ -107,3 +115,10 @@ def doctor_report(config: Config) -> dict[str, object]:
             "long_path_risk": sys.platform == "win32",
         },
     }
+    if office_smoke:
+        report["office_smoke"] = {
+            "word_dispatch": word_available,
+            "excel_dispatch": excel_available,
+            "interactive_dialogs_checked": False,
+        }
+    return report

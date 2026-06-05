@@ -9,6 +9,7 @@ from docrt.config import Config
 from docrt.logging import JsonlLogger, write_diagnostic
 from docrt.models import ErrorCode, Result
 from docrt.paths import ValidationError
+from docrt.recovery import recovery_actions
 from docrt.timeutil import Timer, make_run_id, utc_now_iso
 
 
@@ -71,7 +72,7 @@ def run_operation(
             error_message=str(exc),
             exception_type=type(exc).__name__,
             traceback=tb.format_exc(),
-            recovery_actions=[],
+            recovery_actions=recovery_actions(error_code.value),
             diagnostic_report_path=str(diagnostic_path),
             log_path=str(log_path),
             data={},

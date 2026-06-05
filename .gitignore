@@ -6,9 +6,12 @@ build/
 dist/
 wheels/
 *.egg-info
+target/
+crates/*/target/
 .pytest_cache/
 .ruff_cache/
 .uv-cache/
+.maturin-cache/
 .coverage
 .coverage.*
 htmlcov/

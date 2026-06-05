@@ -1,0 +1,19 @@
+{
+  "document_type": "docx",
+  "operations": [
+    {
+      "type": "replace_paragraph",
+      "paragraph_index": 0,
+      "expected_text": "docrt sample document",
+      "text": "docrt patched sample document"
+    },
+    {
+      "type": "replace_table_cell",
+      "table_index": 0,
+      "row_index": 1,
+      "column_index": 1,
+      "expected_text": "Ready",
+      "text": "Reviewed"
+    }
+  ]
+}

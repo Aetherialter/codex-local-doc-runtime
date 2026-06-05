@@ -1,0 +1,15 @@
+{
+  "annotations": [
+    {
+      "type": "rectangle",
+      "page_number": 1,
+      "bbox": [60, 55, 180, 90]
+    },
+    {
+      "type": "text_note",
+      "page_number": 1,
+      "point": [72, 120],
+      "text": "Review"
+    }
+  ]
+}

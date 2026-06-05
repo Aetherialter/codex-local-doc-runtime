@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Aetherialter/codex-local-doc-runtime/schemas/patch-docx.schema.json",
+  "title": "docrt DOCX patch",
+  "type": "object",
+  "required": ["document_type", "operations"],
+  "properties": {
+    "document_type": { "const": "docx" },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "find", "replace"],
+            "properties": {
+              "type": { "const": "replace_text" },
+              "find": { "type": "string" },
+              "replace": { "type": "string" },
+              "scope": { "enum": ["paragraphs", "tables", "all"] },
+              "max_replacements": { "type": "integer", "minimum": 1 },
+              "conflict_policy": { "enum": ["fail", "skip", "replace"] }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "paragraph_index", "text"],
+            "properties": {
+              "type": { "const": "replace_paragraph" },
+              "paragraph_index": { "type": "integer", "minimum": 0 },
+              "text": { "type": "string" },
+              "expected_text": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "table_index", "row_index", "column_index", "text"],
+            "properties": {
+              "type": { "const": "replace_table_cell" },
+              "table_index": { "type": "integer", "minimum": 0 },
+              "row_index": { "type": "integer", "minimum": 0 },
+              "column_index": { "type": "integer", "minimum": 0 },
+              "text": { "type": "string" },
+              "expected_text": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

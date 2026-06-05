@@ -1,5 +1,7 @@
 # ADR-0004: Defer Rust Core Until Document Protocols Stabilize
 
+Status: Superseded by ADR-0005.
+
 ## Background
 
 The project may eventually use a Rust core for file fingerprinting, hash cache,

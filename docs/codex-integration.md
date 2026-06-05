@@ -14,22 +14,39 @@ uv run docrt doctor
 
 Run `doctor` before document processing when the environment may have changed.
 The JSON result reports Python package availability, Microsoft Word COM,
-Microsoft Excel COM, Poppler tools, output paths, and Windows path-length risk.
+Microsoft Excel COM, Poppler tools, output paths, Rust/Python core backend, and
+Windows path-length risk.
 
 ## Agent Routing Rule
 
 When a task involves local `.docx`, `.pdf`, or `.xlsx` files on Windows, prefer
 `docrt` over ad hoc scripts.
 
-Use these commands for analysis and conversion:
+Use these commands for analysis, conversion, patching, verification, and storage
+management:
 
 ```powershell
 uv run docrt inspect-docx <path>
+uv run docrt read-docx <path>
 uv run docrt inspect-pdf <path>
+uv run docrt read-pdf <path>
 uv run docrt render-pdf <input> [output-dir]
 uv run docrt inspect-xlsx <path>
+uv run docrt read-xlsx <path>
+uv run docrt validate-patch <patch.json>
+uv run docrt patch-docx <input> <patch.json> <output> --dry-run
+uv run docrt patch-docx <input> <patch.json> <output>
+uv run docrt verify-docx <before> <after> [--expect <patch.json>]
+uv run docrt patch-xlsx <input> <patch.json> <output> --dry-run
+uv run docrt patch-xlsx <input> <patch.json> <output>
+uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
+uv run docrt validate-task <task.json>
+uv run docrt run-task <task.json>
+uv run docrt batch-inspect <path> [<path> ...] --use-cache
 uv run docrt docx-to-pdf <input> [output]
 uv run docrt xlsx-to-pdf <input> [output]
+uv run docrt storage-report
+uv run docrt clean --logs --work --cache
 ```
 
 Use explicit output paths when repeatability matters:
@@ -64,6 +81,12 @@ Supported:
 - PDF inspection
 - PDF rendering to PNG
 - XLSX inspection
+- DOCX/XLSX explicit JSON patching
+- DOCX/XLSX verification and comparison
+- PDF additive annotations
+- patch/task/result schema validation
+- document fingerprinting, cache-read, batch-read, indexing, and search
+- dry-run-first storage cleanup
 - XLSX to PDF export through Microsoft Excel COM
 
 Not supported:
@@ -74,11 +97,9 @@ Not supported:
 - encrypted Office files
 - interactive Office dialog workflows
 - complex PDF original-content editing
-- direct DOCX/XLSX patch editing in the current release
 
-For edit workflows, use `docrt` as the inspection, conversion, logging, and
-diagnostics layer. Apply edits only through explicit future `docrt` edit
-commands or another reviewed document editing tool.
+For edit workflows, first `read-*`, then `validate-patch`, then `patch-*`
+with `--dry-run`, then execute the patch, then `verify-*`.
 
 ## Reusable Codex Instruction
 
@@ -93,12 +114,23 @@ Before processing documents, run:
 Set-Location D:\project\python\codex-local-doc-runtime
 uv run docrt doctor
 
-Use docrt for document inspection, rendering, and conversion:
+Use docrt for document inspection, rendering, patching, verification, and
+conversion:
 
 uv run docrt inspect-docx <path> [--output <json>]
+uv run docrt read-docx <path> [--output <json>]
+uv run docrt validate-patch <patch.json>
+uv run docrt patch-docx <input> <patch.json> <output> --dry-run
+uv run docrt patch-docx <input> <patch.json> <output>
+uv run docrt verify-docx <before> <after> [--expect <patch.json>]
 uv run docrt inspect-pdf <path> [--output <json>]
+uv run docrt read-pdf <path> [--output <json>]
 uv run docrt render-pdf <input> [output-dir]
 uv run docrt inspect-xlsx <path> [--output <json>]
+uv run docrt read-xlsx <path> [--output <json>]
+uv run docrt patch-xlsx <input> <patch.json> <output> --dry-run
+uv run docrt patch-xlsx <input> <patch.json> <output>
+uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
 uv run docrt docx-to-pdf <input> [output]
 uv run docrt xlsx-to-pdf <input> [output]
 
@@ -106,6 +138,5 @@ On failure, read log_path and diagnostic_report_path from the JSON result before
 attempting a fix.
 
 Do not assume OCR, .doc, .xls, encrypted Office files, interactive Office
-dialogs, complex PDF original-content editing, or direct DOCX/XLSX patch editing
-are supported by docrt.
+dialogs, or complex PDF original-content editing are supported by docrt.
 ```

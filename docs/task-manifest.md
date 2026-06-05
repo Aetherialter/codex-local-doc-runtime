@@ -1,7 +1,7 @@
 # Task Manifest
 
-`run-task` executes one document operation from a JSON manifest. This gives
-agents a stable, replayable command format.
+`run-task` executes one or more document operations from a JSON manifest. This
+gives agents a stable, replayable command format.
 
 Command:
 
@@ -30,6 +30,8 @@ Supported tasks:
 - `read-xlsx`
 - `patch-docx`
 - `patch-xlsx`
+- `verify-docx`
+- `verify-xlsx`
 - `docx-to-pdf`
 - `xlsx-to-pdf`
 - `render-pdf`
@@ -62,3 +64,35 @@ would be executed without modifying documents.
 
 Failures use the same JSON result error fields as direct CLI commands, including
 `error_code`, `error_message`, `log_path`, and `diagnostic_report_path`.
+
+## Multi-Step Workflow
+
+```json
+{
+  "stop_on_error": true,
+  "tasks": [
+    {
+      "id": "patch",
+      "task": "patch-xlsx",
+      "input": "examples/fixtures/sample.xlsx",
+      "patch": "work/patch.xlsx.json",
+      "output": "outputs/tasks/sample.patched.xlsx"
+    },
+    {
+      "id": "verify",
+      "task": "verify-xlsx",
+      "before": "examples/fixtures/sample.xlsx",
+      "after": "${steps.patch.output_path}"
+    }
+  ]
+}
+```
+
+Step references use this form:
+
+```text
+${steps.<id>.<field>}
+```
+
+The final result contains `steps`, `success_count`, and `failed_count`. Step
+failures include `recovery_actions`.

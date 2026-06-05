@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Aetherialter/codex-local-doc-runtime/schemas/task-manifest.schema.json",
+  "title": "docrt task manifest",
+  "type": "object",
+  "oneOf": [
+    {
+      "required": ["task"],
+      "properties": {
+        "task": { "type": "string" },
+        "input": { "type": "string" },
+        "output": { "type": "string" },
+        "output_dir": { "type": "string" },
+        "patch": { "type": "string" },
+        "dry_run": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": ["tasks"],
+      "properties": {
+        "dry_run": { "type": "boolean" },
+        "stop_on_error": { "type": "boolean" },
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "task"],
+            "properties": {
+              "id": { "type": "string" },
+              "task": { "type": "string" },
+              "input": { "type": "string" },
+              "output": { "type": "string" },
+              "output_dir": { "type": "string" },
+              "patch": { "type": "string" },
+              "dry_run": { "type": "boolean" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

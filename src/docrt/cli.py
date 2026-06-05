@@ -6,7 +6,9 @@ from typing import Annotated
 
 import typer
 
+from docrt.cache_ops import batch_read, cache_read, fingerprint_file, index, search
 from docrt.config import Config
+from docrt.config_cli import config_init, config_set, config_show
 from docrt.doctor import doctor_report
 from docrt.docx_ops import inspect_docx
 from docrt.jsonutil import dump_file, dumps
@@ -19,20 +21,27 @@ from docrt.paths import (
     default_render_output_dir,
     normalize_path,
 )
+from docrt.pdf_annotate import annotate_pdf
 from docrt.pdf_ops import inspect_pdf, render_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.runner import run_operation
+from docrt.schema_ops import validate_patch, validate_result, validate_task
+from docrt.storage_ops import clean, storage_report
 from docrt.task_ops import run_task_manifest
-from docrt.verify_ops import verify_docx, verify_xlsx
+from docrt.verify_ops import compare_docx, compare_xlsx, verify_docx, verify_xlsx
 from docrt.xlsx_ops import inspect_xlsx
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+config_app = typer.Typer(no_args_is_help=True, add_completion=False)
+app.add_typer(config_app, name="config")
 
 
 PopplerOpt = Annotated[str | None, typer.Option("--poppler-path")]
 TimeoutOpt = Annotated[int | None, typer.Option("--timeout", min=1)]
 ForceKillOpt = Annotated[bool, typer.Option("--force-kill-office")]
 OutputOpt = Annotated[Path | None, typer.Option("--output", "-o")]
+DryRunOpt = Annotated[bool, typer.Option("--dry-run")]
+ExpectOpt = Annotated[Path | None, typer.Option("--expect")]
 
 
 def _config(poppler_path: str | None, timeout: int | None, force_kill_office: bool) -> Config:
@@ -55,11 +64,12 @@ def doctor(
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
+    office_smoke: Annotated[bool, typer.Option("--office-smoke")] = False,
 ) -> None:
     config = _config(poppler_path, timeout, force_kill_office)
     result = run_operation(
         "doctor",
-        lambda _run_id, cfg, _logger: doctor_report(cfg),
+        lambda _run_id, cfg, _logger: doctor_report(cfg, office_smoke=office_smoke),
         config=config,
         backend="doctor",
     )
@@ -328,6 +338,7 @@ def patch_docx_cmd(
     input: Path,
     patch: Path,
     output: Path,
+    dry_run: DryRunOpt = False,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -338,7 +349,9 @@ def patch_docx_cmd(
     output_path = normalize_path(output)
     result = run_operation(
         "patch-docx",
-        lambda _run_id, _cfg, _logger: patch_docx(input_path, patch_path, output_path),
+        lambda _run_id, _cfg, _logger: patch_docx(
+            input_path, patch_path, output_path, dry_run=dry_run
+        ),
         config=config,
         input_path=input_path,
         output_path=output_path,
@@ -352,6 +365,7 @@ def patch_xlsx_cmd(
     input: Path,
     patch: Path,
     output: Path,
+    dry_run: DryRunOpt = False,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -362,7 +376,9 @@ def patch_xlsx_cmd(
     output_path = normalize_path(output)
     result = run_operation(
         "patch-xlsx",
-        lambda _run_id, _cfg, _logger: patch_xlsx(input_path, patch_path, output_path),
+        lambda _run_id, _cfg, _logger: patch_xlsx(
+            input_path, patch_path, output_path, dry_run=dry_run
+        ),
         config=config,
         input_path=input_path,
         output_path=output_path,
@@ -375,6 +391,7 @@ def patch_xlsx_cmd(
 def verify_docx_cmd(
     before: Path,
     after: Path,
+    expect: ExpectOpt = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -382,9 +399,10 @@ def verify_docx_cmd(
     config = _config(poppler_path, timeout, force_kill_office)
     before_path = normalize_path(before)
     after_path = normalize_path(after)
+    expect_path = normalize_path(expect) if expect else None
     result = run_operation(
         "verify-docx",
-        lambda _run_id, _cfg, _logger: verify_docx(before_path, after_path),
+        lambda _run_id, _cfg, _logger: verify_docx(before_path, after_path, expect_path),
         config=config,
         input_path=before_path,
         output_path=after_path,
@@ -397,6 +415,7 @@ def verify_docx_cmd(
 def verify_xlsx_cmd(
     before: Path,
     after: Path,
+    expect: ExpectOpt = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -404,9 +423,10 @@ def verify_xlsx_cmd(
     config = _config(poppler_path, timeout, force_kill_office)
     before_path = normalize_path(before)
     after_path = normalize_path(after)
+    expect_path = normalize_path(expect) if expect else None
     result = run_operation(
         "verify-xlsx",
-        lambda _run_id, _cfg, _logger: verify_xlsx(before_path, after_path),
+        lambda _run_id, _cfg, _logger: verify_xlsx(before_path, after_path, expect_path),
         config=config,
         input_path=before_path,
         output_path=after_path,
@@ -430,5 +450,326 @@ def run_task_cmd(
         config=config,
         input_path=task_path,
         backend="task-manifest",
+    )
+    _emit(result)
+
+
+@app.command("compare-docx")
+def compare_docx_cmd(
+    before: Path,
+    after: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    before_path = normalize_path(before)
+    after_path = normalize_path(after)
+    result = run_operation(
+        "compare-docx",
+        lambda _run_id, _cfg, _logger: compare_docx(before_path, after_path),
+        config=config,
+        input_path=before_path,
+        output_path=after_path,
+        backend="python-docx",
+    )
+    _emit(result)
+
+
+@app.command("compare-xlsx")
+def compare_xlsx_cmd(
+    before: Path,
+    after: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    before_path = normalize_path(before)
+    after_path = normalize_path(after)
+    result = run_operation(
+        "compare-xlsx",
+        lambda _run_id, _cfg, _logger: compare_xlsx(before_path, after_path),
+        config=config,
+        input_path=before_path,
+        output_path=after_path,
+        backend="openpyxl",
+    )
+    _emit(result)
+
+
+@app.command("validate-patch")
+def validate_patch_cmd(
+    path: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    result = run_operation(
+        "validate-patch",
+        lambda _run_id, _cfg, _logger: validate_patch(input_path),
+        config=config,
+        input_path=input_path,
+        backend="jsonschema",
+    )
+    _emit(result)
+
+
+@app.command("validate-task")
+def validate_task_cmd(
+    path: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    result = run_operation(
+        "validate-task",
+        lambda _run_id, _cfg, _logger: validate_task(input_path),
+        config=config,
+        input_path=input_path,
+        backend="jsonschema",
+    )
+    _emit(result)
+
+
+@app.command("validate-result")
+def validate_result_cmd(
+    path: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    result = run_operation(
+        "validate-result",
+        lambda _run_id, _cfg, _logger: validate_result(input_path),
+        config=config,
+        input_path=input_path,
+        backend="jsonschema",
+    )
+    _emit(result)
+
+
+@app.command("annotate-pdf")
+def annotate_pdf_cmd(
+    input: Path,
+    annotations: Path,
+    output: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(input)
+    annotations_path = normalize_path(annotations)
+    output_path = normalize_path(output)
+    result = run_operation(
+        "annotate-pdf",
+        lambda _run_id, _cfg, _logger: annotate_pdf(input_path, annotations_path, output_path),
+        config=config,
+        input_path=input_path,
+        output_path=output_path,
+        backend="pymupdf",
+    )
+    _emit(result)
+
+
+@app.command("fingerprint")
+def fingerprint_cmd(
+    path: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    result = run_operation(
+        "fingerprint",
+        lambda _run_id, _cfg, _logger: fingerprint_file(input_path),
+        config=config,
+        input_path=input_path,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
+@app.command("cache-read")
+def cache_read_cmd(
+    path: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    result = run_operation(
+        "cache-read",
+        lambda _run_id, cfg, _logger: cache_read(input_path, cfg),
+        config=config,
+        input_path=input_path,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
+@app.command("batch-read")
+def batch_read_cmd(
+    paths: list[Path],
+    use_cache: Annotated[bool, typer.Option("--use-cache")] = False,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "batch-read",
+        lambda _run_id, cfg, _logger: batch_read(paths, cfg, use_cache=use_cache),
+        config=config,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
+@app.command("batch-inspect")
+def batch_inspect_cmd(
+    paths: list[Path],
+    use_cache: Annotated[bool, typer.Option("--use-cache")] = False,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "batch-inspect",
+        lambda _run_id, cfg, _logger: batch_read(paths, cfg, use_cache=use_cache),
+        config=config,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
+@app.command("index")
+def index_cmd(
+    paths: list[Path],
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "index",
+        lambda _run_id, cfg, _logger: index(paths, cfg),
+        config=config,
+        backend="core-bridge",
+    )
+    _emit(result)
+
+
+@app.command("search")
+def search_cmd(
+    query: str,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "search",
+        lambda _run_id, cfg, _logger: search(query, cfg),
+        config=config,
+        backend="python",
+    )
+    _emit(result)
+
+
+@app.command("storage-report")
+def storage_report_cmd(
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "storage-report",
+        lambda _run_id, cfg, _logger: storage_report(cfg),
+        config=config,
+        backend="python",
+    )
+    _emit(result)
+
+
+@app.command("clean")
+def clean_cmd(
+    older_than: Annotated[int | None, typer.Option("--older-than", min=0)] = None,
+    yes: Annotated[bool, typer.Option("--yes")] = False,
+    logs: Annotated[bool, typer.Option("--logs")] = False,
+    outputs: Annotated[bool, typer.Option("--outputs")] = False,
+    work: Annotated[bool, typer.Option("--work")] = False,
+    diagnostics: Annotated[bool, typer.Option("--diagnostics")] = False,
+    cache: Annotated[bool, typer.Option("--cache")] = False,
+    dist: Annotated[bool, typer.Option("--dist")] = False,
+    all_targets: Annotated[bool, typer.Option("--all")] = False,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "clean",
+        lambda _run_id, cfg, _logger: clean(
+            cfg,
+            older_than_days=older_than,
+            yes=yes,
+            logs=logs,
+            outputs=outputs,
+            work=work,
+            diagnostics=diagnostics,
+            cache=cache,
+            dist=dist,
+            all_targets=all_targets,
+        ),
+        config=config,
+        backend="python",
+    )
+    _emit(result)
+
+
+@config_app.command("init")
+def config_init_cmd(force: Annotated[bool, typer.Option("--force")] = False) -> None:
+    config = Config.load()
+    result = run_operation(
+        "config-init",
+        lambda _run_id, _cfg, _logger: config_init(force=force),
+        config=config,
+        backend="config",
+    )
+    _emit(result)
+
+
+@config_app.command("show")
+def config_show_cmd() -> None:
+    config = Config.load()
+    result = run_operation(
+        "config-show",
+        lambda _run_id, cfg, _logger: config_show(cfg),
+        config=config,
+        backend="config",
+    )
+    _emit(result)
+
+
+@config_app.command("set")
+def config_set_cmd(key: str, value: str) -> None:
+    config = Config.load()
+    result = run_operation(
+        "config-set",
+        lambda _run_id, _cfg, _logger: config_set(key, value),
+        config=config,
+        backend="config",
     )
     _emit(result)

@@ -7,6 +7,13 @@ def test_doctor_report_shape():
     assert "packages" in report
     assert "office" in report
     assert "poppler" in report
+    assert "core" in report
+
+
+def test_doctor_report_office_smoke_shape():
+    report = doctor_report(Config.load(), office_smoke=True)
+    assert "office_smoke" in report
+    assert report["office_smoke"]["interactive_dialogs_checked"] is False
 
 
 def test_poppler_lookup_returns_required_tools():

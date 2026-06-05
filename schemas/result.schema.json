@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Aetherialter/codex-local-doc-runtime/schemas/result.schema.json",
+  "title": "docrt CLI result",
+  "type": "object",
+  "required": ["ok", "operation", "run_id", "started_at", "ended_at", "duration_ms", "data"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "operation": { "type": "string" },
+    "input_path": { "type": ["string", "null"] },
+    "output_path": { "type": ["string", "null"] },
+    "backend": { "type": ["string", "null"] },
+    "run_id": { "type": "string" },
+    "started_at": { "type": "string" },
+    "ended_at": { "type": "string" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "error_code": { "type": ["string", "null"] },
+    "error_message": { "type": ["string", "null"] },
+    "recovery_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "data": { "type": "object" }
+  },
+  "additionalProperties": true
+}

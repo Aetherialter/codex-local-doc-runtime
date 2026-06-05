@@ -9,6 +9,7 @@ Command:
 
 ```powershell
 uv run docrt patch-docx input.docx patch.json output.docx
+uv run docrt patch-docx input.docx patch.json output.docx --dry-run
 ```
 
 Patch shape:
@@ -20,11 +21,15 @@ Patch shape:
     {
       "type": "replace_text",
       "find": "old text",
-      "replace": "new text"
+      "replace": "new text",
+      "scope": "all",
+      "max_replacements": 3,
+      "conflict_policy": "fail"
     },
     {
       "type": "replace_paragraph",
       "paragraph_index": 0,
+      "expected_text": "old paragraph",
       "text": "replacement paragraph"
     },
     {
@@ -32,6 +37,7 @@ Patch shape:
       "table_index": 0,
       "row_index": 1,
       "column_index": 0,
+      "expected_text": "old cell",
       "text": "replacement cell"
     }
   ]
@@ -50,6 +56,7 @@ Command:
 
 ```powershell
 uv run docrt patch-xlsx input.xlsx patch.json output.xlsx
+uv run docrt patch-xlsx input.xlsx patch.json output.xlsx --dry-run
 ```
 
 Patch shape:
@@ -62,12 +69,14 @@ Patch shape:
       "type": "set_cell",
       "sheet": "Summary",
       "cell": "B2",
+      "expected_value": "Draft",
       "value": "Ready"
     },
     {
       "type": "set_range_values",
       "sheet": "Summary",
       "start_cell": "A4",
+      "expected_values": [["Name", "Value"], ["Count", 2]],
       "values": [["Name", "Value"], ["Count", 3]]
     },
     {
@@ -106,4 +115,10 @@ run:
 ```powershell
 uv run docrt verify-docx before.docx after.docx
 uv run docrt verify-xlsx before.xlsx after.xlsx
+uv run docrt verify-docx before.docx after.docx --expect patch.json
+uv run docrt verify-xlsx before.xlsx after.xlsx --expect patch.json
 ```
+
+Dry-run mode validates the patch, plans changes, and returns `planned_count`,
+`applied_count`, `skipped_count`, and `conflicts` without writing the output
+file.

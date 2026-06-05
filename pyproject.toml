@@ -22,6 +22,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "jsonschema>=4.26.0",
     "openpyxl>=3.1.5",
     "pandas>=2.3.0",
     "psutil>=7.0.0",
@@ -42,6 +43,7 @@ Issues = "https://github.com/Aetherialter/codex-local-doc-runtime/issues"
 
 [dependency-groups]
 dev = [
+    "maturin>=1.13.3",
     "pytest>=8.4.0",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.0",
