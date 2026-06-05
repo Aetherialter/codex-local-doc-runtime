@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format follows Keep a Changelog style, and this project uses semantic
 versioning.
 
+## [0.2.0-preview.2] - 2026-06-05
+
+### Fixed
+
+- Make the GitHub release workflow idempotent so re-running or re-publishing a
+  tag updates the existing prerelease instead of failing when the release
+  already exists.
+
 ## [0.2.0-preview.1] - 2026-06-05
 
 ### Added

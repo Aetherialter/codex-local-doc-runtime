@@ -27,7 +27,15 @@ jobs:
             $NotesFile = "CHANGELOG.md"
           }
 
-          gh release create $Tag `
-            --title "$Tag" `
-            --notes-file $NotesFile `
-            --prerelease
+          gh release view $Tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $Tag `
+              --title "$Tag" `
+              --notes-file $NotesFile `
+              --prerelease
+          } else {
+            gh release create $Tag `
+              --title "$Tag" `
+              --notes-file $NotesFile `
+              --prerelease
+          }

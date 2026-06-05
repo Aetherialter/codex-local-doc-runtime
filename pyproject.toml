@@ -1,6 +1,6 @@
 [project]
 name = "codex-local-doc-runtime"
-version = "0.2.0rc1"
+version = "0.2.0rc2"
 description = "Local DOCX/PDF/XLSX processing runtime for Codex on Windows"
 readme = "README.md"
 authors = [
