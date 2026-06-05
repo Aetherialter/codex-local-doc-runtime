@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -76,7 +77,9 @@ def find_poppler_tools(config: Config) -> dict[str, str | None]:
     return tools
 
 
-def doctor_report(config: Config, *, office_smoke: bool = False) -> dict[str, object]:
+def doctor_report(
+    config: Config, *, office_smoke: bool = False, agent: bool = False
+) -> dict[str, object]:
     packages = {
         package: {"module": module, "available": check_import(module)}
         for package, module in PYTHON_PACKAGES.items()
@@ -121,4 +124,60 @@ def doctor_report(config: Config, *, office_smoke: bool = False) -> dict[str, ob
             "excel_dispatch": excel_available,
             "interactive_dialogs_checked": False,
         }
+    if agent:
+        report["agent"] = agent_report(config, report)
     return report
+
+
+def agent_report(config: Config, base_report: dict[str, object] | None = None) -> dict[str, object]:
+    report = base_report or doctor_report(config)
+    packages = report["packages"]
+    assert isinstance(packages, dict)
+    required_packages = {
+        name: bool(value.get("available")) if isinstance(value, dict) else False
+        for name, value in packages.items()
+        if name not in {"pytest"}
+    }
+    writable_paths = {
+        "outputs": _is_writable(config.outputs_path),
+        "logs": _is_writable(config.logs_path),
+        "work": _is_writable(config.work_path),
+        "cache": _is_writable(config.work_path / "cache"),
+        "diagnostics": _is_writable(config.diagnostics_path),
+    }
+    poppler = report["poppler"]
+    office = report["office"]
+    core = report["core"]
+    assert isinstance(poppler, dict)
+    assert isinstance(office, dict)
+    assert isinstance(core, dict)
+    required_ok = all(required_packages.values()) and all(writable_paths.values())
+    return {
+        "ready": required_ok,
+        "project_root": str(Path.cwd().resolve().absolute()),
+        "in_docrt_project": (Path.cwd() / "pyproject.toml").exists()
+        and (Path.cwd() / "src" / "docrt").exists(),
+        "required": {
+            "packages": required_packages,
+            "paths_writable": writable_paths,
+            "cli_json_contract": True,
+        },
+        "optional": {
+            "word_com_available": bool(office.get("word_com_available")),
+            "excel_com_available": bool(office.get("excel_com_available")),
+            "poppler_available": bool(poppler.get("available")),
+            "rust_core_available": bool(core.get("rust_available")),
+        },
+        "recommended_doctor_command": "uv run docrt doctor --agent --office-smoke",
+    }
+
+
+def _is_writable(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".docrt-write-test"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return os.access(path, os.W_OK)
+    except OSError:
+        return False

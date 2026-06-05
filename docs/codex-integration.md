@@ -9,13 +9,19 @@ Use this repository as the document runtime:
 
 ```powershell
 Set-Location D:\project\python\codex-local-doc-runtime
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 ```
 
-Run `doctor` before document processing when the environment may have changed.
-The JSON result reports Python package availability, Microsoft Word COM,
-Microsoft Excel COM, Poppler tools, output paths, Rust/Python core backend, and
-Windows path-length risk.
+Run `doctor --agent` before document processing when the environment may have
+changed. The JSON result reports Python package availability, writable runtime
+paths, Microsoft Word COM, Microsoft Excel COM, Poppler tools, output paths,
+Rust/Python core backend, and Windows path-length risk.
+
+Generate a reusable Codex instruction fragment with:
+
+```powershell
+uv run docrt agent-config
+```
 
 ## Agent Routing Rule
 
@@ -41,6 +47,7 @@ uv run docrt patch-xlsx <input> <patch.json> <output> --dry-run
 uv run docrt patch-xlsx <input> <patch.json> <output>
 uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
 uv run docrt validate-task <task.json>
+uv run docrt explain-task <task.json>
 uv run docrt run-task <task.json>
 uv run docrt batch-inspect <path> [<path> ...] --use-cache
 uv run docrt docx-to-pdf <input> [output]
@@ -112,7 +119,7 @@ codex-local-doc-runtime repository at D:\project\python\codex-local-doc-runtime.
 Before processing documents, run:
 
 Set-Location D:\project\python\codex-local-doc-runtime
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 
 Use docrt for document inspection, rendering, patching, verification, and
 conversion:
@@ -133,6 +140,9 @@ uv run docrt patch-xlsx <input> <patch.json> <output>
 uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
 uv run docrt docx-to-pdf <input> [output]
 uv run docrt xlsx-to-pdf <input> [output]
+uv run docrt validate-task <task.json>
+uv run docrt explain-task <task.json>
+uv run docrt run-task <task.json>
 
 On failure, read log_path and diagnostic_report_path from the JSON result before
 attempting a fix.

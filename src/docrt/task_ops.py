@@ -59,6 +59,36 @@ def run_task_manifest(path: str | Path, config: Config, run_id: str) -> dict[str
     return _run_single_task_manifest(manifest_path, manifest, config, run_id)
 
 
+def explain_task_manifest(path: str | Path) -> dict[str, object]:
+    manifest_path = validate_input_path(path, {".json"})
+    text = manifest_path.read_text(encoding="utf-8")
+    validate_basic_json_object(text)
+    try:
+        manifest = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Task JSON is invalid: {exc}") from exc
+    if not isinstance(manifest, dict):
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, "Task manifest must be an object")
+    steps = _manifest_steps(manifest)
+    return {
+        "manifest_path": str(manifest_path),
+        "task_count": len(steps),
+        "dry_run": bool(manifest.get("dry_run", False)),
+        "reads": _unique(_collect_paths(steps, "reads")),
+        "writes": _unique(_collect_paths(steps, "writes")),
+        "generates": _unique(_collect_paths(steps, "generates")),
+        "patches": _unique(_collect_paths(steps, "patches")),
+        "expects": _unique(_collect_paths(steps, "expects")),
+        "requires_office_com": any(_requires_office_com(step["task"]) for step in steps),
+        "produces_intermediate_artifacts": any(
+            step["task"] in {"inspect-docx", "inspect-pdf", "inspect-xlsx", "render-pdf"}
+            for step in steps
+        ),
+        "supports_dry_run": all(_supports_dry_run(step["task"]) for step in steps),
+        "steps": steps,
+    }
+
+
 def _run_single_task_manifest(
     manifest_path: Path, manifest: dict[str, Any], config: Config, run_id: str
 ) -> dict[str, object]:
@@ -254,6 +284,96 @@ def _task_plan(task: str, manifest: dict[str, Any]) -> dict[str, object]:
         if key in manifest:
             plan[key] = manifest[key]
     return plan
+
+
+def _manifest_steps(manifest: dict[str, Any]) -> list[dict[str, object]]:
+    if isinstance(manifest.get("tasks"), list):
+        steps = []
+        for index, raw_step in enumerate(manifest["tasks"]):
+            if not isinstance(raw_step, dict):
+                raise ValidationError(
+                    ErrorCode.VALIDATION_FAILED, f"Task step at index {index} must be an object"
+                )
+            task = _require_string(raw_step, "task")
+            if task not in SUPPORTED_TASKS:
+                raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unsupported task: {task}")
+            steps.append(_explain_step(raw_step, index=index))
+        return steps
+    task = _require_string(manifest, "task")
+    if task not in SUPPORTED_TASKS:
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unsupported task: {task}")
+    return [_explain_step(manifest, index=0)]
+
+
+def _explain_step(manifest: dict[str, Any], *, index: int) -> dict[str, object]:
+    task = _require_string(manifest, "task")
+    reads: list[str] = []
+    writes: list[str] = []
+    generates: list[str] = []
+    patches: list[str] = []
+    expects: list[str] = []
+    if "input" in manifest:
+        reads.append(str(manifest["input"]))
+    if "before" in manifest:
+        reads.append(str(manifest["before"]))
+    if "after" in manifest:
+        reads.append(str(manifest["after"]))
+    if "patch" in manifest:
+        patches.append(str(manifest["patch"]))
+        reads.append(str(manifest["patch"]))
+    if "expect" in manifest:
+        expects.append(str(manifest["expect"]))
+        reads.append(str(manifest["expect"]))
+    if "output" in manifest:
+        output = str(manifest["output"])
+        writes.append(output)
+        generates.append(output)
+    if "output_dir" in manifest:
+        output_dir = str(manifest["output_dir"])
+        writes.append(output_dir)
+        generates.append(output_dir)
+    return {
+        "index": index,
+        "id": manifest.get("id"),
+        "task": task,
+        "reads": _unique(reads),
+        "writes": _unique(writes),
+        "generates": _unique(generates),
+        "patches": _unique(patches),
+        "expects": _unique(expects),
+        "requires_office_com": _requires_office_com(task),
+        "supports_dry_run": _supports_dry_run(task),
+        "supports_native_dry_run": task in {"patch-docx", "patch-xlsx"},
+        "dry_run": bool(manifest.get("dry_run", False)),
+    }
+
+
+def _collect_paths(steps: list[dict[str, object]], key: str) -> list[str]:
+    paths: list[str] = []
+    for step in steps:
+        value = step.get(key, [])
+        if isinstance(value, list):
+            paths.extend(str(item) for item in value)
+    return paths
+
+
+def _requires_office_com(task: str) -> bool:
+    return task in {"docx-to-pdf", "xlsx-to-pdf"}
+
+
+def _supports_dry_run(task: str) -> bool:
+    return task in SUPPORTED_TASKS
+
+
+def _unique(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _resolve_refs(value: Any, context: dict[str, dict[str, Any]]) -> Any:

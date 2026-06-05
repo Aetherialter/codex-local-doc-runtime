@@ -11,7 +11,7 @@ from docrt.models import ErrorCode
 from docrt.patch_ops import patch_docx, patch_xlsx
 from docrt.paths import ValidationError
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
-from docrt.task_ops import run_task_manifest
+from docrt.task_ops import explain_task_manifest, run_task_manifest
 from docrt.verify_ops import verify_docx, verify_xlsx
 
 
@@ -325,3 +325,58 @@ def test_run_task_multi_step_error_contains_structured_error(tmp_path: Path):
     assert result["failed_count"] == 1
     assert result["steps"][0]["error"]["error_code"] == ErrorCode.FILE_NOT_FOUND.value
     assert result["steps"][0]["error"]["recovery_actions"]
+
+
+def test_explain_task_manifest_reports_agent_effects(tmp_path: Path):
+    manifest_path = tmp_path / "task.json"
+    input_path = tmp_path / "sample.xlsx"
+    patch_path = tmp_path / "patch.json"
+    output_path = tmp_path / "patched.xlsx"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "stop_on_error": True,
+                "tasks": [
+                    {
+                        "id": "patch",
+                        "task": "patch-xlsx",
+                        "input": str(input_path),
+                        "patch": str(patch_path),
+                        "output": str(output_path),
+                        "dry_run": True,
+                    },
+                    {
+                        "id": "verify",
+                        "task": "verify-xlsx",
+                        "before": str(input_path),
+                        "after": "${steps.patch.output_path}",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = explain_task_manifest(manifest_path)
+
+    assert result["task_count"] == 2
+    assert str(input_path) in result["reads"]
+    assert str(output_path) in result["writes"]
+    assert str(patch_path) in result["patches"]
+    assert result["requires_office_com"] is False
+    assert result["supports_dry_run"] is True
+    assert result["steps"][0]["supports_native_dry_run"] is True
+    assert result["steps"][1]["supports_native_dry_run"] is False
+
+
+def test_explain_task_manifest_reports_office_requirement(tmp_path: Path):
+    manifest_path = tmp_path / "task.json"
+    manifest_path.write_text(
+        json.dumps({"task": "docx-to-pdf", "input": "sample.docx", "output": "sample.pdf"}),
+        encoding="utf-8",
+    )
+
+    result = explain_task_manifest(manifest_path)
+
+    assert result["requires_office_com"] is True
+    assert result["generates"] == ["sample.pdf"]

@@ -10,7 +10,8 @@ Run the relevant commands and paste the results:
 uv run ruff format --check .
 uv run ruff check .
 uv run pytest
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
+uv run docrt agent-config
 ```
 
 ## Checklist

@@ -17,7 +17,8 @@ created under `outputs/` or `work/` during local testing.
 ```powershell
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
+uv run docrt agent-config
 uv run docrt inspect-pdf .\path\to\sample.pdf
 uv run docrt render-pdf .\path\to\sample.pdf
 ```
@@ -30,4 +31,11 @@ uv run docrt inspect-docx .\path\to\sample.docx
 uv run docrt docx-to-pdf .\path\to\sample.docx
 uv run docrt inspect-xlsx .\path\to\sample.xlsx
 uv run docrt xlsx-to-pdf .\path\to\sample.xlsx
+```
+
+Task manifests can be checked before execution:
+
+```powershell
+uv run docrt validate-task examples\tasks\xlsx-patch-verify.json
+uv run docrt explain-task examples\tasks\xlsx-patch-verify.json
 ```

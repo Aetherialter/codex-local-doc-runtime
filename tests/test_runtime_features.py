@@ -6,6 +6,7 @@ from pathlib import Path
 import fitz
 import pytest
 
+from docrt.agent import agent_config
 from docrt.config import Config
 from docrt.config_cli import config_set
 from docrt.models import ErrorCode
@@ -118,7 +119,8 @@ def test_storage_report_and_clean_dry_run(tmp_path: Path, monkeypatch: pytest.Mo
     report = storage_report(config)
     planned = clean(config, logs=True)
 
-    assert any(target["name"] == "logs" for target in report["targets"])
+    logs_target = next(target for target in report["targets"] if target["name"] == "logs")
+    assert logs_target["oldest_file_time"] is not None
     assert planned["dry_run"] is True
     assert planned["planned_count"] == 1
     assert log_path.exists()
@@ -146,3 +148,18 @@ def test_config_set_supports_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     assert result["key"] == "outputs_dir"
     assert Config.load(project_root=tmp_path).outputs_dir == "custom-outputs"
+
+
+def test_agent_config_contains_codex_runtime_fragment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+
+    result = agent_config(config)
+
+    assert result["runtime"]["package"] == "docrt"
+    assert result["runtime"]["repository"].endswith("codex-local-doc-runtime.git")
+    assert "uv run docrt doctor --agent --office-smoke" in result["agents_md"]
+    assert "AGENTS.md" in result["agents_md"]
+    assert "explain-task" in result["commands"]["task"][1]

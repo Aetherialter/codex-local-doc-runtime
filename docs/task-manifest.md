@@ -9,6 +9,16 @@ Command:
 uv run docrt run-task task.json
 ```
 
+Explain a manifest before execution:
+
+```powershell
+uv run docrt explain-task task.json
+```
+
+`explain-task` returns JSON describing files that will be read, modified, or
+generated, whether Office COM is required, whether intermediate artifacts may be
+created, and whether every step supports dry-run planning.
+
 ## Common Fields
 
 ```json

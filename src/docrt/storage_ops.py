@@ -19,18 +19,7 @@ class CleanTarget:
 
 def storage_report(config: Config) -> dict[str, object]:
     targets = _all_targets(config)
-    return {
-        "targets": [
-            {
-                "name": target.name,
-                "path": str(target.path),
-                "exists": target.path.exists(),
-                "file_count": _file_count(target.path),
-                "bytes": _dir_size(target.path),
-            }
-            for target in targets
-        ]
-    }
+    return {"targets": [_target_report(target) for target in targets]}
 
 
 def clean(
@@ -178,13 +167,18 @@ def _remove_empty_dirs(targets: list[CleanTarget]) -> None:
                     path.rmdir()
 
 
-def _dir_size(path: Path) -> int:
-    return sum(item.stat().st_size for item in _iter_files(path) or [])
-
-
-def _file_count(path: Path) -> int:
-    return sum(1 for _ in _iter_files(path) or [])
-
-
 def _mtime(path: Path) -> datetime:
     return datetime.fromtimestamp(path.stat().st_mtime, UTC)
+
+
+def _target_report(target: CleanTarget) -> dict[str, object]:
+    files = list(_iter_files(target.path) or [])
+    oldest = min((_mtime(path) for path in files), default=None)
+    return {
+        "name": target.name,
+        "path": str(target.path),
+        "exists": target.path.exists(),
+        "file_count": len(files),
+        "bytes": sum(path.stat().st_size for path in files),
+        "oldest_file_time": oldest.isoformat() if oldest else None,
+    }

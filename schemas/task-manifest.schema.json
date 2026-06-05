@@ -9,9 +9,12 @@
       "properties": {
         "task": { "type": "string" },
         "input": { "type": "string" },
+        "before": { "type": "string" },
+        "after": { "type": "string" },
         "output": { "type": "string" },
         "output_dir": { "type": "string" },
         "patch": { "type": "string" },
+        "expect": { "type": "string" },
         "dry_run": { "type": "boolean" }
       },
       "additionalProperties": true
@@ -31,9 +34,12 @@
               "id": { "type": "string" },
               "task": { "type": "string" },
               "input": { "type": "string" },
+              "before": { "type": "string" },
+              "after": { "type": "string" },
               "output": { "type": "string" },
               "output_dir": { "type": "string" },
               "patch": { "type": "string" },
+              "expect": { "type": "string" },
               "dry_run": { "type": "boolean" }
             },
             "additionalProperties": true

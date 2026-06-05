@@ -28,6 +28,8 @@ machine-readable results instead of interactive desktop workflows.
 - `docrt.office_worker`: subprocess entrypoint for Word and Excel COM work.
 - `docrt.office_process`: Office process snapshots and cleanup diagnostics.
 - `docrt.poppler`: Poppler tool discovery for auxiliary PDF diagnostics.
+- `docrt.agent`: Agent-facing configuration fragments and bootstrap command
+  groups.
 
 ## Runtime Flow
 
@@ -46,7 +48,7 @@ with:
 
 ```powershell
 uv sync --dev
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 ```
 
 Microsoft Word, Microsoft Excel, and Poppler are external runtime capabilities.

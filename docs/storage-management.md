@@ -15,6 +15,9 @@ Inspect usage:
 uv run docrt storage-report
 ```
 
+The report includes each target path, existence, file count, byte size, and
+`oldest_file_time` so agents can decide whether age-based cleanup is safe.
+
 Plan cleanup without deleting:
 
 ```powershell

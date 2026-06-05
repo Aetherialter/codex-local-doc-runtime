@@ -56,5 +56,14 @@ jobs:
       - name: Test
         run: uv run pytest
 
+      - name: CLI smoke
+        shell: pwsh
+        run: |
+          uv run docrt doctor --agent
+          uv run docrt agent-config
+          uv run docrt validate-task examples\tasks\xlsx-patch-verify.json
+          uv run docrt explain-task examples\tasks\xlsx-patch-verify.json
+          uv run docrt storage-report
+
       - name: Coverage smoke
         run: uv run pytest --cov=docrt

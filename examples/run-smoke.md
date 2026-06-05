@@ -5,7 +5,8 @@ Run these commands from the repository root on Windows.
 ```powershell
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
+uv run docrt agent-config
 ```
 
 Inspect the sample files:

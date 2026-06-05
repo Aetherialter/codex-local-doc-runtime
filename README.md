@@ -19,6 +19,8 @@ and start using the `docrt` CLI without relying on a global Python command.
 - Write structured JSONL logs and failure diagnostics for every run.
 - Diagnose Python packages, Office COM, Poppler, and runtime paths with
   `docrt doctor`.
+- Generate Codex/Agent integration instructions with `docrt agent-config`.
+- Check Agent readiness with `docrt doctor --agent`.
 - Use an optional Rust core for hashing, file fingerprints, path checks, and
   JSON preflight validation.
 - Validate patch, task, and result JSON through committed schemas.
@@ -44,6 +46,7 @@ Current CLI capabilities:
 - validate JSON schemas for patches, tasks, and command results
 - fingerprint, cache-read, batch-read, index, and search local documents
 - execute single-step or multi-step document operations from task manifests
+- explain task manifests before execution with `explain-task`
 - inspect and clean local runtime artifacts without deleting outside the
   project root
 
@@ -112,7 +115,7 @@ Set-Location D:\project\python
 git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 uv run pytest
 ```
 
@@ -123,7 +126,7 @@ winget install --id Rustlang.Rustup -e
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
 uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 ```
 
 If the Rust extension is not built, `docrt` falls back to the Python core for
@@ -135,6 +138,12 @@ For durable Codex behavior across conversations, read
 `docs/codex-integration.md` and copy `examples/AGENTS.template.md` into your
 target project as `AGENTS.md`.
 
+You can also generate a machine-readable configuration and Markdown fragment:
+
+```powershell
+uv run docrt agent-config
+```
+
 Minimal instruction:
 
 ```text
@@ -143,7 +152,7 @@ codex-local-doc-runtime repository at D:\project\python\codex-local-doc-runtime.
 Before processing documents, run:
 
 Set-Location D:\project\python\codex-local-doc-runtime
-uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
 
 Use these commands for document inspection and conversion:
 
@@ -165,6 +174,7 @@ uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
 uv run docrt compare-xlsx <before> <after>
 uv run docrt xlsx-to-pdf <input> [output]
 uv run docrt validate-task <task.json>
+uv run docrt explain-task <task.json>
 uv run docrt run-task <task.json>
 
 Do not assume OCR, .doc, .xls, encrypted Office files, or direct PDF editing are
@@ -178,6 +188,8 @@ code.
 
 ```powershell
 uv run docrt doctor
+uv run docrt doctor --agent --office-smoke
+uv run docrt agent-config
 uv run docrt inspect-docx path\to\file.docx
 uv run docrt inspect-docx path\to\file.docx --output outputs\file.docx.inspect.json
 uv run docrt read-docx path\to\file.docx --output outputs\file.docx.read.json
@@ -201,6 +213,7 @@ uv run docrt compare-xlsx path\to\file.xlsx outputs\file.patched.xlsx
 uv run docrt xlsx-to-pdf path\to\file.xlsx
 uv run docrt validate-patch path\to\patch.json
 uv run docrt validate-task path\to\task.json
+uv run docrt explain-task path\to\task.json
 uv run docrt fingerprint path\to\file.docx
 uv run docrt cache-read path\to\file.docx
 uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
@@ -254,6 +267,10 @@ outputs/{input-name}.inspect.json
 ```
 
 These directories are local runtime outputs and are ignored by Git.
+
+`storage-report` includes file count, total bytes, and `oldest_file_time` for
+each local runtime target. `clean` is dry-run by default and deletes only when
+`--yes` is present.
 
 ## Result Shape
 
@@ -338,8 +355,9 @@ GitHub Actions runs on `windows-latest` and verifies:
 - coverage smoke test with `pytest --cov=docrt`
 - Rust core checks with `cargo fmt`, `cargo clippy`, and `cargo test`
 
-Office desktop applications are not assumed in CI. Use `docrt doctor` locally to
-validate Word COM and Excel COM availability.
+Office desktop applications are not assumed in CI. Use
+`docrt doctor --agent --office-smoke` locally to validate Word COM and Excel COM
+availability.
 
 ## Troubleshooting
 

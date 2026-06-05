@@ -63,3 +63,33 @@ def test_inspect_xlsx_output_option_writes_explicit_json(tmp_path: Path):
     assert payload["ok"] is True
     assert payload["output_path"] == str(output_path.resolve())
     assert saved["sheets"][0]["preview"][0][0] == "hello xlsx"
+
+
+def test_agent_config_command_outputs_json(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["agent-config"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "agent-config"
+    assert payload["data"]["runtime"]["package"] == "docrt"
+    assert "AGENTS.md" in payload["data"]["agents_md"]
+
+
+def test_explain_task_command_outputs_json(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    task_path = tmp_path / "task.json"
+    task_path.write_text(
+        json.dumps({"task": "read-docx", "input": "sample.docx", "dry_run": True}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["explain-task", str(task_path)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "explain-task"
+    assert payload["data"]["reads"] == ["sample.docx"]

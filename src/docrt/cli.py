@@ -6,6 +6,7 @@ from typing import Annotated
 
 import typer
 
+from docrt.agent import agent_config
 from docrt.cache_ops import batch_read, cache_read, fingerprint_file, index, search
 from docrt.config import Config
 from docrt.config_cli import config_init, config_set, config_show
@@ -27,7 +28,7 @@ from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.runner import run_operation
 from docrt.schema_ops import validate_patch, validate_result, validate_task
 from docrt.storage_ops import clean, storage_report
-from docrt.task_ops import run_task_manifest
+from docrt.task_ops import explain_task_manifest, run_task_manifest
 from docrt.verify_ops import compare_docx, compare_xlsx, verify_docx, verify_xlsx
 from docrt.xlsx_ops import inspect_xlsx
 
@@ -65,13 +66,30 @@ def doctor(
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
     office_smoke: Annotated[bool, typer.Option("--office-smoke")] = False,
+    agent: Annotated[bool, typer.Option("--agent")] = False,
 ) -> None:
     config = _config(poppler_path, timeout, force_kill_office)
     result = run_operation(
         "doctor",
-        lambda _run_id, cfg, _logger: doctor_report(cfg, office_smoke=office_smoke),
+        lambda _run_id, cfg, _logger: doctor_report(cfg, office_smoke=office_smoke, agent=agent),
         config=config,
         backend="doctor",
+    )
+    _emit(result)
+
+
+@app.command("agent-config")
+def agent_config_cmd(
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "agent-config",
+        lambda _run_id, cfg, _logger: agent_config(cfg),
+        config=config,
+        backend="agent",
     )
     _emit(result)
 
@@ -447,6 +465,25 @@ def run_task_cmd(
     result = run_operation(
         "run-task",
         lambda run_id, cfg, _logger: run_task_manifest(task_path, cfg, run_id),
+        config=config,
+        input_path=task_path,
+        backend="task-manifest",
+    )
+    _emit(result)
+
+
+@app.command("explain-task")
+def explain_task_cmd(
+    task: Path,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    task_path = normalize_path(task)
+    result = run_operation(
+        "explain-task",
+        lambda _run_id, _cfg, _logger: explain_task_manifest(task_path),
         config=config,
         input_path=task_path,
         backend="task-manifest",
