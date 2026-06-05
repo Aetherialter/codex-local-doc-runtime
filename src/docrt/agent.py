@@ -64,6 +64,7 @@ def _commands() -> dict[str, list[str] | str]:
             "uv run docrt read-docx <path>",
             "uv run docrt inspect-pdf <path>",
             "uv run docrt read-pdf <path>",
+            "uv run docrt search-pdf <path> <query>",
             "uv run docrt inspect-xlsx <path>",
             "uv run docrt read-xlsx <path>",
         ],
@@ -142,5 +143,8 @@ Manage local runtime artifacts with:
 ```
 
 Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office
-dialogs, or complex PDF original-content editing are supported.
+dialogs, or complex PDF original-content editing are supported. Office COM
+conversion requires Microsoft Word or Microsoft Excel on the local machine.
+Rust acceleration is optional and falls back to Python when the native extension
+is unavailable.
 """

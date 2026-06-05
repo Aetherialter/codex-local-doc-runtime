@@ -17,6 +17,7 @@ from docrt.verify_ops import verify_docx, verify_xlsx
 
 def _make_docx(path: Path) -> None:
     document = Document()
+    document.add_heading("Original Heading", level=1)
     document.add_paragraph("hello docx")
     table = document.add_table(rows=2, cols=2)
     table.cell(0, 0).text = "Field"
@@ -50,8 +51,10 @@ def test_read_docx_protocol(tmp_path: Path):
     result = read_docx(path)
 
     assert result["document_type"] == "docx"
-    assert result["metadata"]["paragraph_count"] == 1
-    assert result["content_blocks"][0]["type"] == "paragraph"
+    assert result["metadata"]["paragraph_count"] == 2
+    assert result["content_blocks"][0]["type"] == "heading"
+    assert result["content_blocks"][0]["style"] == "Heading 1"
+    assert result["content_blocks"][0]["is_heading"] is True
     assert result["tables"][0]["rows"][1][1]["text"] == "Draft"
 
 
@@ -110,8 +113,76 @@ def test_patch_docx_and_verify(tmp_path: Path):
     assert patched["patch_summary"]["applied_count"] == 2
     assert verification["changed"] is True
     assert verification["changed_blocks"]
-    assert "patched docx" in read_back["content_blocks"][0]["text"]
+    assert "patched docx" in read_back["content_blocks"][1]["text"]
     assert read_back["tables"][0]["rows"][1][1]["text"] == "Ready"
+
+
+def test_patch_docx_replace_heading_by_text_and_style(tmp_path: Path):
+    input_path = tmp_path / "sample.docx"
+    patch_path = tmp_path / "patch.json"
+    output_path = tmp_path / "patched.docx"
+    _make_docx(input_path)
+    patch_path.write_text(
+        json.dumps(
+            {
+                "document_type": "docx",
+                "operations": [
+                    {
+                        "type": "replace_heading",
+                        "heading_text": "Original",
+                        "heading_style": "Heading 1",
+                        "match": "contains",
+                        "text": "Reviewed Heading",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    dry_run = patch_docx(input_path, patch_path, output_path, dry_run=True)
+    patched = patch_docx(input_path, patch_path, output_path)
+    read_back = read_docx(output_path)
+
+    assert dry_run["patch_summary"]["planned_count"] == 1
+    assert dry_run["patch_summary"]["applied_count"] == 0
+    assert patched["patch_summary"]["applied_count"] == 1
+    assert read_back["content_blocks"][0]["text"] == "Reviewed Heading"
+
+
+def test_patch_docx_replace_heading_conflict_policy_replace(tmp_path: Path):
+    input_path = tmp_path / "sample.docx"
+    patch_path = tmp_path / "patch.json"
+    output_path = tmp_path / "patched.docx"
+    document = Document()
+    document.add_heading("One", level=1)
+    document.add_heading("Two", level=1)
+    document.save(input_path)
+    patch_path.write_text(
+        json.dumps(
+            {
+                "document_type": "docx",
+                "operations": [
+                    {
+                        "type": "replace_heading",
+                        "heading_style": "Heading 1",
+                        "text": "First Only",
+                        "max_replacements": 1,
+                        "conflict_policy": "replace",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    patched = patch_docx(input_path, patch_path, output_path)
+    read_back = read_docx(output_path)
+
+    assert patched["patch_summary"]["conflict_count"] == 1
+    assert patched["patch_summary"]["skipped_count"] == 1
+    assert read_back["content_blocks"][0]["text"] == "First Only"
+    assert read_back["content_blocks"][1]["text"] == "Two"
 
 
 def test_patch_xlsx_and_verify(tmp_path: Path):
@@ -157,7 +228,7 @@ def test_patch_docx_dry_run_does_not_write_output(tmp_path: Path):
                 "operations": [
                     {
                         "type": "replace_paragraph",
-                        "paragraph_index": 0,
+                        "paragraph_index": 1,
                         "expected_text": "hello docx",
                         "text": "planned docx",
                     }
@@ -236,6 +307,29 @@ def test_run_task_dry_run(tmp_path: Path):
 
     assert result["dry_run"] is True
     assert result["would_execute"]["task"] == "read-docx"
+
+
+def test_run_task_search_pdf_writes_output(tmp_path: Path):
+    input_path = tmp_path / "sample.pdf"
+    output_path = tmp_path / "sample.pdf.search.json"
+    manifest_path = tmp_path / "task.json"
+    _make_pdf(input_path)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "task": "search-pdf",
+                "input": str(input_path),
+                "query": "hello",
+                "output": str(output_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_task_manifest(manifest_path, Config.load(project_root=tmp_path), "test-run")
+
+    assert result["result"]["count"] == 1
+    assert output_path.exists()
 
 
 def test_run_task_multi_step_with_reference(tmp_path: Path):

@@ -30,7 +30,7 @@ from docrt.paths import (
     normalize_path,
 )
 from docrt.pdf_annotate import annotate_pdf
-from docrt.pdf_ops import inspect_pdf, render_pdf
+from docrt.pdf_ops import inspect_pdf, render_pdf, search_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.runner import run_operation
 from docrt.schema_ops import validate_patch, validate_result, validate_task
@@ -268,6 +268,36 @@ def render_pdf_cmd(
         config=config,
         input_path=input_path,
         output_path=target_dir,
+        backend="pymupdf",
+    )
+    _emit(result)
+
+
+@app.command("search-pdf")
+def search_pdf_cmd(
+    path: Path,
+    query: str,
+    output: OutputOpt = None,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    input_path = normalize_path(path)
+    output_path = normalize_path(output) if output else None
+
+    def handler(_run_id, _cfg, _logger):
+        data = search_pdf(input_path, query)
+        if output_path:
+            dump_file(output_path, data)
+        return data
+
+    result = run_operation(
+        "search-pdf",
+        handler,
+        config=config,
+        input_path=input_path,
+        output_path=output_path,
         backend="pymupdf",
     )
     _emit(result)

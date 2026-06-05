@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from docrt.docx_styles import is_heading_style, paragraph_style_name
 from docrt.paths import ensure_unlocked_for_read, validate_input_path
 
 
@@ -17,11 +18,14 @@ def read_docx(path: str | Path) -> dict[str, object]:
     document = Document(str(input_path))
     content_blocks: list[dict[str, object]] = []
     for index, paragraph in enumerate(document.paragraphs):
+        style_name = paragraph_style_name(paragraph)
         content_blocks.append(
             {
-                "type": "paragraph",
+                "type": "heading" if is_heading_style(style_name) else "paragraph",
                 "text": paragraph.text,
                 "location": {"paragraph_index": index},
+                "style": style_name,
+                "is_heading": is_heading_style(style_name),
             }
         )
 

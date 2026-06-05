@@ -19,7 +19,7 @@ from docrt.paths import (
     default_render_output_dir,
     validate_input_path,
 )
-from docrt.pdf_ops import inspect_pdf, render_pdf
+from docrt.pdf_ops import inspect_pdf, render_pdf, search_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.recovery import recovery_actions
 from docrt.verify_ops import verify_docx, verify_xlsx
@@ -39,6 +39,7 @@ SUPPORTED_TASKS = {
     "docx-to-pdf",
     "xlsx-to-pdf",
     "render-pdf",
+    "search-pdf",
 }
 
 STEP_REF_RE = re.compile(r"\$\{steps\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_.-]+)\}")
@@ -253,6 +254,12 @@ def _execute_task(
             input_path, config.outputs_path
         )
         return render_pdf(input_path, output_dir)
+    if task == "search-pdf":
+        return _write_optional(
+            search_pdf(_require_string(manifest, "input"), _require_string(manifest, "query")),
+            manifest,
+            config,
+        )
     raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unsupported task: {task}")
 
 
@@ -279,6 +286,7 @@ def _task_plan(task: str, manifest: dict[str, Any]) -> dict[str, object]:
         "output_dir",
         "patch",
         "expect",
+        "query",
         "dry_run",
     ):
         if key in manifest:

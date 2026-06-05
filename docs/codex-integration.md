@@ -36,6 +36,7 @@ uv run docrt inspect-docx <path>
 uv run docrt read-docx <path>
 uv run docrt inspect-pdf <path>
 uv run docrt read-pdf <path>
+uv run docrt search-pdf <path> <query>
 uv run docrt render-pdf <input> [output-dir]
 uv run docrt inspect-xlsx <path>
 uv run docrt read-xlsx <path>
@@ -89,6 +90,7 @@ Supported:
 - DOCX to PDF export through Microsoft Word COM
 - PDF inspection
 - PDF rendering to PNG
+- PDF text search
 - XLSX inspection
 - DOCX/XLSX explicit JSON patching
 - DOCX/XLSX verification and comparison
@@ -106,6 +108,10 @@ Not supported:
 - encrypted Office files
 - interactive Office dialog workflows
 - complex PDF original-content editing
+
+Office COM conversion requires Microsoft Word or Microsoft Excel to be
+installed in the current Windows user session. Rust acceleration is optional:
+without a local Rust/maturin build, `docrt` falls back to the Python core.
 
 For edit workflows, first `read-*`, then `validate-patch`, then `patch-*`
 with `--dry-run`, then execute the patch, then `verify-*`.
@@ -134,6 +140,7 @@ uv run docrt patch-docx <input> <patch.json> <output>
 uv run docrt verify-docx <before> <after> [--expect <patch.json>]
 uv run docrt inspect-pdf <path> [--output <json>]
 uv run docrt read-pdf <path> [--output <json>]
+uv run docrt search-pdf <path> <query>
 uv run docrt render-pdf <input> [output-dir]
 uv run docrt inspect-xlsx <path> [--output <json>]
 uv run docrt read-xlsx <path> [--output <json>]

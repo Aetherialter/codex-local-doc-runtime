@@ -2,9 +2,15 @@
   "document_type": "docx",
   "operations": [
     {
+      "type": "replace_heading",
+      "heading_text": "docrt sample document",
+      "heading_style": "Heading 1",
+      "text": "docrt reviewed sample document"
+    },
+    {
       "type": "replace_paragraph",
-      "paragraph_index": 0,
-      "expected_text": "docrt sample document",
+      "paragraph_index": 1,
+      "expected_text": "This fixture is safe for open source smoke tests.",
       "text": "docrt patched sample document"
     },
     {

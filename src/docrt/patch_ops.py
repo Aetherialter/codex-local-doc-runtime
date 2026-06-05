@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from docrt.core_bridge import validate_basic_json_object
+from docrt.docx_styles import is_heading_style, paragraph_style_name
 from docrt.models import ErrorCode
 from docrt.paths import (
     ValidationError,
@@ -49,6 +50,8 @@ def patch_docx(
             change = _docx_replace_text(document, operation, dry_run=dry_run)
         elif op_type == "replace_paragraph":
             change = _docx_replace_paragraph(document, operation, dry_run=dry_run)
+        elif op_type == "replace_heading":
+            change = _docx_replace_heading(document, operation, dry_run=dry_run)
         elif op_type == "replace_table_cell":
             change = _docx_replace_table_cell(document, operation, dry_run=dry_run)
         else:
@@ -332,6 +335,126 @@ def _docx_replace_paragraph(
         "planned_count": 1,
         "applied_count": 0 if dry_run else 1,
     }
+
+
+def _docx_replace_heading(
+    document, operation: dict[str, Any], *, dry_run: bool
+) -> dict[str, object]:
+    replacement_text = _require_string(operation, "text")
+    heading_text = operation.get("heading_text")
+    heading_style = operation.get("heading_style")
+    if heading_text is not None and not isinstance(heading_text, str):
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, "heading_text must be a string")
+    if heading_style is not None and not isinstance(heading_style, str):
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, "heading_style must be a string")
+    if heading_text is None and heading_style is None:
+        raise ValidationError(
+            ErrorCode.VALIDATION_FAILED,
+            "replace_heading requires heading_text, heading_style, or both",
+        )
+    match_mode = operation.get("match", "exact")
+    if match_mode not in {"exact", "contains"}:
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, "match must be exact or contains")
+    max_replacements = operation.get("max_replacements")
+    if max_replacements is not None and (
+        not isinstance(max_replacements, int) or max_replacements < 1
+    ):
+        raise ValidationError(
+            ErrorCode.VALIDATION_FAILED,
+            "max_replacements must be a positive integer",
+        )
+    conflict_policy = operation.get("conflict_policy", "fail")
+    if conflict_policy not in {"fail", "skip", "replace"}:
+        raise ValidationError(
+            ErrorCode.VALIDATION_FAILED,
+            "conflict_policy must be one of: fail, skip, replace",
+        )
+
+    matches = _docx_heading_matches(
+        document,
+        heading_text=heading_text,
+        heading_style=heading_style,
+        match_mode=match_mode,
+    )
+    total_matches = len(matches)
+    skipped_count = 0
+    conflict: str | None = None
+    if max_replacements is not None and total_matches > max_replacements:
+        conflict = "max_replacements_exceeded"
+        if conflict_policy == "fail":
+            raise ValidationError(
+                ErrorCode.VALIDATION_FAILED,
+                f"replace_heading matched {total_matches} locations, exceeding "
+                f"max_replacements {max_replacements}",
+            )
+        if conflict_policy == "skip":
+            skipped_count = total_matches
+            matches = []
+        else:
+            skipped_count = total_matches - max_replacements
+            matches = matches[:max_replacements]
+
+    if not dry_run:
+        for match in matches:
+            document.paragraphs[int(match["paragraph_index"])].text = replacement_text
+
+    result: dict[str, object] = {
+        "type": "replace_heading",
+        "heading_text": heading_text,
+        "heading_style": heading_style,
+        "match": match_mode,
+        "text": replacement_text,
+        "planned_count": total_matches,
+        "applied_count": 0 if dry_run else len(matches),
+        "skipped_count": skipped_count,
+        "locations": matches,
+    }
+    if conflict:
+        result["conflict"] = conflict
+    return result
+
+
+def _docx_heading_matches(
+    document,
+    *,
+    heading_text: str | None,
+    heading_style: str | None,
+    match_mode: str,
+) -> list[dict[str, object]]:
+    matches: list[dict[str, object]] = []
+    for paragraph_index, paragraph in enumerate(document.paragraphs):
+        style_name = _paragraph_style_name(paragraph)
+        if heading_style is not None:
+            style_matches = style_name == heading_style
+        else:
+            style_matches = _is_heading_style(style_name)
+        if not style_matches:
+            continue
+        if heading_text is not None and not _text_matches(paragraph.text, heading_text, match_mode):
+            continue
+        matches.append(
+            {
+                "type": "heading",
+                "paragraph_index": paragraph_index,
+                "old_text": paragraph.text,
+                "style": style_name,
+            }
+        )
+    return matches
+
+
+def _paragraph_style_name(paragraph) -> str:
+    return paragraph_style_name(paragraph)
+
+
+def _is_heading_style(style_name: str) -> bool:
+    return is_heading_style(style_name)
+
+
+def _text_matches(value: str, expected: str, match_mode: str) -> bool:
+    if match_mode == "contains":
+        return expected in value
+    return value == expected
 
 
 def _docx_replace_table_cell(

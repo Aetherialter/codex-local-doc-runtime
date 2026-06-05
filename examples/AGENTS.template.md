@@ -30,6 +30,7 @@ uv run docrt inspect-docx <path> [--output <json>]
 uv run docrt read-docx <path> [--output <json>]
 uv run docrt inspect-pdf <path> [--output <json>]
 uv run docrt read-pdf <path> [--output <json>]
+uv run docrt search-pdf <path> <query>
 uv run docrt render-pdf <input> [output-dir]
 uv run docrt inspect-xlsx <path> [--output <json>]
 uv run docrt read-xlsx <path> [--output <json>]
@@ -60,4 +61,8 @@ Rules:
 - Keep generated files under `outputs/`, `logs/`, or `work/`.
 - Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office
   dialogs, or complex PDF original-content editing are supported by `docrt`.
+- Office COM conversion requires Microsoft Word or Microsoft Excel on the local
+  machine.
+- Rust acceleration is optional; without a local Rust/maturin build, `docrt`
+  falls back to Python.
 ```

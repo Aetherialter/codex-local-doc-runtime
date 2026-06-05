@@ -1,115 +1,85 @@
 # codex-local-doc-runtime
 
-`docrt` is a Windows-first local document runtime for Codex and other automation
-tools. It provides a stable non-interactive JSON CLI and Python package for
-DOCX, PDF, and XLSX processing.
+`docrt` 是一个面向 Windows + PowerShell + uv 的本地文档运行时，目标是让
+Codex 或其他 Agent 在处理本机 Word、PDF、Excel 文件时，优先走一套稳定、
+可诊断、可复现的命令链路，而不是临时脚本或不稳定的默认能力。
 
-The project is designed so a fresh Windows machine with the required system
-tools can clone the repository, sync dependencies with `uv`, run diagnostics,
-and start using the `docrt` CLI without relying on a global Python command.
+当前版本定位为 **lead preview**：适合个人长期使用和开源预览，但还不是
+`v1.0.0`。项目已经支持 clone 后恢复使用、Agent 配置片段生成、JSON CLI
+协议、安全编辑闭环、缓存治理和可选 Rust 加速。
 
-## Features
+## 能力范围
 
-- Inspect `.docx` files with `python-docx`.
-- Convert `.docx` to PDF through Microsoft Word COM.
-- Inspect and render `.pdf` files with PyMuPDF.
-- Inspect `.xlsx` files with `openpyxl` and `pandas`.
-- Convert `.xlsx` to PDF through Microsoft Excel COM.
-- Emit one normalized JSON result from every CLI operation.
-- Write structured JSONL logs and failure diagnostics for every run.
-- Diagnose Python packages, Office COM, Poppler, and runtime paths with
-  `docrt doctor`.
-- Generate Codex/Agent integration instructions with `docrt agent-config`.
-- Check Agent readiness with `docrt doctor --agent`.
-- Use an optional Rust core for hashing, batch fingerprints, indexed search,
-  path checks, and JSON preflight validation.
-- Validate patch, task, and result JSON through committed schemas.
-- Run replayable single-step or multi-step Agent task manifests.
-- Report storage usage and clean generated logs, outputs, work files, caches,
-  and build artifacts through explicit dry-run-first commands.
+支持：
 
-## Capability Boundary
+- `.docx`：读取、结构检查、安全 patch、verify、compare、通过 Word COM 导出 PDF
+- `.pdf`：读取、结构检查、渲染 PNG、文本搜索、追加批注
+- `.xlsx`：读取、结构检查、安全 patch、verify、compare、通过 Excel COM 导出 PDF
+- `task.json`：单步或多步 Agent 任务协议
+- `patch.json`：DOCX/XLSX 显式编辑协议
+- `storage-report` 和 `clean`：长期使用时治理 logs、outputs、work、cache
+- 可选 Rust core：hash、batch fingerprint、索引搜索、路径检查、JSON 预检、批量计划
 
-Current CLI capabilities:
-
-- analyze DOCX structure and text with `inspect-docx`
-- analyze PDF metadata, page geometry, and text layer status with `inspect-pdf`
-- render PDF pages to PNG with `render-pdf`
-- analyze XLSX workbook sheets and preview cell data with `inspect-xlsx`
-- export DOCX to PDF with `docx-to-pdf`
-- export XLSX to PDF with `xlsx-to-pdf`
-- read DOCX/PDF/XLSX into a unified `content_blocks` JSON protocol
-- patch DOCX/XLSX through explicit JSON patch files with dry-run and expected
-  value conflict checks
-- verify and compare DOCX/XLSX changes with structured diffs
-- annotate PDFs with safe additive annotations
-- validate JSON schemas for patches, tasks, and command results
-- fingerprint, batch-fingerprint, cache-read, batch-read, index, and search
-  local documents
-- execute single-step or multi-step document operations from task manifests
-- explain task manifests before execution with `explain-task`
-- inspect and clean local runtime artifacts without deleting outside the
-  project root
-
-Current CLI edits DOCX and XLSX only through explicit patch JSON files and never
-overwrites the input document by default. PDF original-content editing is not
-supported; only additive annotations are supported.
-
-## Supported Scope
-
-Supported:
-
-- `.docx`
-- `.pdf`
-- `.xlsx`
-
-Not supported:
+不支持：
 
 - OCR
 - `.doc`
 - `.xls`
-- encrypted Office files
-- Office flows that require interactive dialogs
+- 加密 Office 文件
+- 需要人工点击确认的 Office 弹窗流程
+- 复杂 PDF 原文内容编辑
 
-## Requirements
+重要限制：
 
-Required for all commands:
+- Word/Excel COM 能力依赖本机安装 Microsoft Word 和 Microsoft Excel。
+- 没有安装 Word 时，`docx-to-pdf` 和 Word COM smoke 会不可用。
+- 没有安装 Excel 时，`xlsx-to-pdf` 和 Excel COM smoke 会不可用。
+- GitHub Actions 不假设存在桌面版 Office，因此 CI 只覆盖非交互能力。
+- Rust 加速已经可用，但当前没有发布预编译 wheel。别人 clone 后如果需要 Rust 加速，
+  需要本机安装 Rust toolchain 并运行 `maturin develop`；否则自动 fallback 到 Python。
+- 已用 Windows 临时目录做过 clean clone 模拟演练；迁移到目标机器后仍建议重新执行
+  `doctor --agent --office-smoke` 验证本机 Office COM 和 Poppler 状态。
 
-- Windows
+## 环境要求
+
+基础使用必须存在：
+
+- Windows 10/11
 - PowerShell
-- Git, or a ZIP download of this repository from GitHub
-- Internet access for first-time dependency installation
-- `uv`
-- Python 3.12+, installed and managed through `uv`
+- Git
+- uv
+- 可联网安装依赖
 
-Required for Office PDF export:
+Office/PDF 增强能力：
 
-- Microsoft Word for `docx-to-pdf`
-- Microsoft Excel for `xlsx-to-pdf`
+- Microsoft Word：用于 `docx-to-pdf`
+- Microsoft Excel：用于 `xlsx-to-pdf`
+- Poppler：用于额外 PDF 诊断和渲染工具检查
 
-Required or recommended for PDF diagnostics/rendering workflows:
+Rust 加速可选：
 
-- Poppler tools: `pdfinfo`, `pdftoppm`, `pdftocairo`
+- Rust toolchain
+- cargo
+- maturin，已放在 dev 依赖中
 
-Optional for native acceleration:
-
-- Rust toolchain through rustup/cargo
-- `maturin`, installed through this project's `uv sync --dev`
-
-Install Git and `uv` before using this project:
+安装基础工具：
 
 ```powershell
 winget install --id Git.Git -e
 winget install --id astral-sh.uv -e
 ```
 
-Restart PowerShell after installation if `git` or `uv` is not immediately
-available.
+安装 Rust 可选工具：
 
-## Quick Start After Clone
+```powershell
+winget install --id Rustlang.Rustup -e
+```
 
-Use this path on a fresh Windows machine after installing the required system
-tools listed above.
+安装后如果 `git`、`uv` 或 `cargo` 不能立即识别，重启 PowerShell。
+
+## Clone 后恢复使用
+
+推荐固定路径：
 
 ```powershell
 Set-Location D:\project\python
@@ -117,105 +87,113 @@ git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
 uv run docrt doctor --agent --office-smoke
-uv run pytest
 ```
 
-To enable the optional Rust core on a development machine:
+如果只需要 Python fallback，不需要 Rust 加速，到这里即可使用。
+
+启用本机 Rust 加速：
 
 ```powershell
-winget install --id Rustlang.Rustup -e
 Set-Location D:\project\python\codex-local-doc-runtime
 uv sync --dev
+$env:PYO3_PYTHON = (Resolve-Path .venv\Scripts\python.exe).Path
+$pythonBase = (& $env:PYO3_PYTHON -c "import sys; print(sys.base_prefix)").Trim()
+$env:PATH = "$pythonBase;$env:PATH"
 uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
-uv run docrt doctor --agent --office-smoke
+uv run docrt doctor --agent
 ```
 
-If the Rust extension is not built, `docrt` falls back to the Python core for
-hashing, batch fingerprints, path safety checks, indexed search, and JSON
-preflight validation.
+看到以下字段表示 Rust 已启用：
 
-## Using With Codex
+```json
+{
+  "core": {
+    "backend": "rust",
+    "rust_available": true
+  }
+}
+```
 
-For durable Codex behavior across conversations, read
-`docs/codex-integration.md` and copy `examples/AGENTS.template.md` into your
-target project as `AGENTS.md`.
+## Codex 集成
 
-You can also generate a machine-readable configuration and Markdown fragment:
+生成可复制到 `AGENTS.md` 的配置片段：
 
 ```powershell
+Set-Location D:\project\python\codex-local-doc-runtime
 uv run docrt agent-config
 ```
 
-Minimal instruction:
+建议写入全局或项目级 `AGENTS.md` 的核心规则：
 
 ```text
-When working with local .docx, .pdf, or .xlsx files on Windows, use the
-codex-local-doc-runtime repository at D:\project\python\codex-local-doc-runtime.
-Before processing documents, run:
+When working with local .docx, .pdf, or .xlsx files on Windows, prefer
+docrt from D:\project\python\codex-local-doc-runtime.
+
+Before processing documents:
 
 Set-Location D:\project\python\codex-local-doc-runtime
 uv run docrt doctor --agent --office-smoke
 
-Use these commands for document inspection and conversion:
-
-uv run docrt inspect-docx <path> [--output <json>]
-uv run docrt read-docx <path> [--output <json>]
-uv run docrt validate-patch <patch.json>
-uv run docrt patch-docx <input> <patch.json> <output> [--dry-run]
-uv run docrt verify-docx <before> <after> [--expect <patch.json>]
-uv run docrt compare-docx <before> <after>
-uv run docrt docx-to-pdf <input> [output]
-uv run docrt inspect-pdf <path> [--output <json>]
-uv run docrt read-pdf <path> [--output <json>]
-uv run docrt render-pdf <input> [output-dir]
-uv run docrt annotate-pdf <input> <annotations.json> <output>
-uv run docrt inspect-xlsx <path> [--output <json>]
-uv run docrt read-xlsx <path> [--output <json>]
-uv run docrt patch-xlsx <input> <patch.json> <output> [--dry-run]
-uv run docrt verify-xlsx <before> <after> [--expect <patch.json>]
-uv run docrt compare-xlsx <before> <after>
-uv run docrt xlsx-to-pdf <input> [output]
-uv run docrt validate-task <task.json>
-uv run docrt explain-task <task.json>
-uv run docrt run-task <task.json>
-
-Do not assume OCR, .doc, .xls, encrypted Office files, or direct PDF editing are
-supported by docrt.
+Use docrt read/patch/verify/render/search commands instead of ad hoc scripts.
+Do not assume OCR, .doc, .xls, encrypted Office files, interactive Office dialogs,
+or complex PDF original-content editing are supported.
 ```
 
-## CLI Commands
+仓库中也提供模板：
 
-All commands print JSON to stdout, write a JSONL log, and return a fixed exit
-code.
+```powershell
+Get-Content examples\AGENTS.template.md
+```
+
+## 常用命令
+
+环境检查：
 
 ```powershell
 uv run docrt doctor
 uv run docrt doctor --agent --office-smoke
 uv run docrt agent-config
+```
+
+DOCX：
+
+```powershell
 uv run docrt inspect-docx path\to\file.docx
-uv run docrt inspect-docx path\to\file.docx --output outputs\file.docx.inspect.json
 uv run docrt read-docx path\to\file.docx --output outputs\file.docx.read.json
-uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx
-uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx --dry-run
-uv run docrt verify-docx path\to\file.docx outputs\file.patched.docx
-uv run docrt compare-docx path\to\file.docx outputs\file.patched.docx
-uv run docrt docx-to-pdf path\to\file.docx
-uv run docrt inspect-pdf path\to\file.pdf
-uv run docrt inspect-pdf path\to\file.pdf --output outputs\file.pdf.inspect.json
-uv run docrt read-pdf path\to\file.pdf --output outputs\file.pdf.read.json
-uv run docrt render-pdf path\to\file.pdf
-uv run docrt annotate-pdf path\to\file.pdf path\to\annotations.json outputs\file.annotated.pdf
-uv run docrt inspect-xlsx path\to\file.xlsx
-uv run docrt inspect-xlsx path\to\file.xlsx --output outputs\file.xlsx.inspect.json
-uv run docrt read-xlsx path\to\file.xlsx --output outputs\file.xlsx.read.json
-uv run docrt patch-xlsx path\to\file.xlsx path\to\patch.json outputs\file.patched.xlsx
-uv run docrt patch-xlsx path\to\file.xlsx path\to\patch.json outputs\file.patched.xlsx --dry-run
-uv run docrt verify-xlsx path\to\file.xlsx outputs\file.patched.xlsx
-uv run docrt compare-xlsx path\to\file.xlsx outputs\file.patched.xlsx
-uv run docrt xlsx-to-pdf path\to\file.xlsx
 uv run docrt validate-patch path\to\patch.json
-uv run docrt validate-task path\to\task.json
-uv run docrt explain-task path\to\task.json
+uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx --dry-run
+uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx
+uv run docrt verify-docx path\to\file.docx outputs\file.patched.docx --expect path\to\patch.json
+uv run docrt compare-docx path\to\file.docx outputs\file.patched.docx
+uv run docrt docx-to-pdf path\to\file.docx outputs\file.pdf
+```
+
+PDF：
+
+```powershell
+uv run docrt inspect-pdf path\to\file.pdf
+uv run docrt read-pdf path\to\file.pdf --output outputs\file.pdf.read.json
+uv run docrt search-pdf path\to\file.pdf "keyword"
+uv run docrt render-pdf path\to\file.pdf outputs\file-pages
+uv run docrt annotate-pdf path\to\file.pdf path\to\annotations.json outputs\file.annotated.pdf
+```
+
+XLSX：
+
+```powershell
+uv run docrt inspect-xlsx path\to\file.xlsx
+uv run docrt read-xlsx path\to\file.xlsx --output outputs\file.xlsx.read.json
+uv run docrt validate-patch path\to\patch.json
+uv run docrt patch-xlsx path\to\file.xlsx path\to\patch.json outputs\file.patched.xlsx --dry-run
+uv run docrt patch-xlsx path\to\file.xlsx path\to\patch.json outputs\file.patched.xlsx
+uv run docrt verify-xlsx path\to\file.xlsx outputs\file.patched.xlsx --expect path\to\patch.json
+uv run docrt compare-xlsx path\to\file.xlsx outputs\file.patched.xlsx
+uv run docrt xlsx-to-pdf path\to\file.xlsx outputs\file.pdf
+```
+
+批量、索引和缓存：
+
+```powershell
 uv run docrt fingerprint path\to\file.docx
 uv run docrt batch-fingerprint path\to\a.docx path\to\b.xlsx
 uv run docrt cache-read path\to\file.docx
@@ -223,61 +201,97 @@ uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
 uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
 uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
-uv run docrt storage-report
-uv run docrt clean --logs --work --cache
-uv run docrt clean --logs --work --cache --yes
-uv run docrt config show
-uv run docrt run-task path\to\task.json
 ```
 
-Common options:
+任务协议：
 
 ```powershell
-uv run docrt doctor --poppler-path D:\tools\poppler\bin
-uv run docrt docx-to-pdf input.docx output.pdf --timeout 30
-uv run docrt xlsx-to-pdf input.xlsx output.pdf --force-kill-office
+uv run docrt validate-task path\to\task.json
+uv run docrt explain-task path\to\task.json
+uv run docrt run-task path\to\task.json
+uv run docrt validate-result path\to\result.json
 ```
 
-`--force-kill-office` only enables force cleanup when the runtime config also
-allows it. Default cleanup only targets Office processes that appear to have
-been created by the current conversion task.
+## 安全编辑闭环
 
-## Output Rules
+DOCX 和 XLSX 修改都要求显式 `patch.json`，不会默认覆盖原文件。
 
-Run ID:
+推荐链路：
 
-```text
-YYYYMMDD-HHMMSS-randomid
+```powershell
+uv run docrt read-docx path\to\file.docx --output outputs\before.json
+uv run docrt validate-patch path\to\patch.json
+uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx --dry-run
+uv run docrt patch-docx path\to\file.docx path\to\patch.json outputs\file.patched.docx
+uv run docrt verify-docx path\to\file.docx outputs\file.patched.docx --expect path\to\patch.json
+uv run docrt compare-docx path\to\file.docx outputs\file.patched.docx
 ```
 
-Default paths:
+DOCX 当前支持：
+
+- `replace_text`：按文本替换，可限制段落、表格或全部范围
+- `replace_paragraph`：按段落索引替换
+- `replace_heading`：按标题文本、标题样式或两者组合替换
+- `replace_table_cell`：按表格、行、列定位替换单元格
+
+XLSX 当前支持：
+
+- `set_cell`
+- `set_range_values`
+- `add_sheet`
+- `rename_sheet`
+
+PDF 当前只承诺读取、渲染、搜索和追加批注，不承诺复杂原文编辑。
+
+## 运行产物和清理
+
+默认运行产物：
 
 ```text
-outputs/
 logs/
+outputs/
 work/
 outputs/diagnostics/
+work/cache/
 ```
 
-Generated files:
+这些目录都已加入 `.gitignore`，不会污染仓库提交。
 
-```text
-logs/{run_id}.jsonl
-outputs/diagnostics/{run_id}.diagnostic.json
-outputs/{input-stem}.pdf
-outputs/{input-stem}/page-{page:04d}.png
-outputs/{input-name}.inspect.json
+查看占用：
+
+```powershell
+uv run docrt storage-report
 ```
 
-These directories are local runtime outputs and are ignored by Git.
+清理预览，默认不会删除：
 
-`storage-report` includes file count, total bytes, and `oldest_file_time` for
-each local runtime target. `clean` is dry-run by default and deletes only when
-`--yes` is present.
+```powershell
+uv run docrt clean --logs --work --cache
+```
 
-## Result Shape
+确认删除：
 
-Every operation returns the same JSON shape:
+```powershell
+uv run docrt clean --logs --work --cache --yes
+```
+
+按时间清理：
+
+```powershell
+uv run docrt clean --logs --work --cache --older-than 14 --yes
+```
+
+清理 outputs 时要更谨慎，因为里面可能有你希望保留的导出文件：
+
+```powershell
+uv run docrt clean --outputs --older-than 30 --yes
+```
+
+## 输出协议
+
+所有 CLI 命令都向 stdout 输出 JSON，并写入结构化日志。
+
+标准结果形状：
 
 ```json
 {
@@ -286,9 +300,9 @@ Every operation returns the same JSON shape:
   "input_path": null,
   "output_path": null,
   "backend": "doctor",
-  "run_id": "20260604-120000-abcdef",
-  "started_at": "2026-06-04T12:00:00.000Z",
-  "ended_at": "2026-06-04T12:00:00.100Z",
+  "run_id": "20260605-120000-abcdef",
+  "started_at": "2026-06-05T12:00:00.000Z",
+  "ended_at": "2026-06-05T12:00:00.100Z",
   "duration_ms": 100,
   "error_code": null,
   "error_message": null,
@@ -301,90 +315,7 @@ Every operation returns the same JSON shape:
 }
 ```
 
-## Configuration
-
-Configuration priority:
-
-1. CLI options
-2. environment variables
-3. `docrt.config.json`
-4. defaults
-
-Supported environment variables:
-
-- `POPPLER_PATH`
-- `DOCRT_TIMEOUT_SECONDS`
-- `DOCRT_ALLOW_FORCE_KILL_OFFICE`
-- `DOCRT_OUTPUTS_DIR`
-- `DOCRT_LOGS_DIR`
-- `DOCRT_WORK_DIR`
-- `DOCRT_DIAGNOSTICS_DIR`
-
-Example:
-
-```powershell
-$env:POPPLER_PATH = "D:\tools\poppler\bin"
-uv run docrt doctor
-```
-
-## Development
-
-```powershell
-uv sync --dev
-uv run ruff format .
-uv run ruff check .
-uv run pytest
-uv run pytest --cov=docrt
-$env:PYO3_PYTHON = (Resolve-Path .venv\Scripts\python.exe).Path
-$env:PATH = "$((& $env:PYO3_PYTHON -c 'import sys; print(sys.base_prefix)').Trim());$env:PATH"
-cargo fmt --check --manifest-path crates\docrt-core\Cargo.toml
-cargo clippy --manifest-path crates\docrt-core\Cargo.toml -- -D warnings
-cargo test --manifest-path crates\docrt-core\Cargo.toml
-uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
-```
-
-## Examples
-
-The `examples/fixtures/` directory contains small non-sensitive sample files.
-Run the full local smoke workflow from `examples/run-smoke.md`.
-
-## CI
-
-GitHub Actions runs on `windows-latest` and verifies:
-
-- dependency sync through `uv`
-- formatting with `ruff format --check`
-- linting with `ruff check`
-- unit tests with `pytest`
-- coverage smoke test with `pytest --cov=docrt`
-- Rust core checks with `cargo fmt`, `cargo clippy`, and `cargo test`
-
-Office desktop applications are not assumed in CI. Use
-`docrt doctor --agent --office-smoke` locally to validate Word COM and Excel COM
-availability.
-
-## Troubleshooting
-
-If `uv` is not found, install it and restart PowerShell:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-If Poppler is missing, install Poppler and pass its `bin` directory:
-
-```powershell
-uv run docrt doctor --poppler-path D:\tools\poppler\bin
-```
-
-If Word or Excel COM is unavailable, confirm that Microsoft Word or Excel is
-installed and can open normally in the current Windows user session:
-
-```powershell
-uv run docrt doctor
-```
-
-If a command fails, inspect the JSON result fields:
+失败时优先看：
 
 - `error_code`
 - `error_message`
@@ -393,15 +324,89 @@ If a command fails, inspect the JSON result fields:
 - `diagnostic_report_path`
 - `log_path`
 
-If Windows reports path length risk, clone the repository into a shorter path,
-for example:
+## Clean Clone 演练
+
+可以用临时目录模拟一台新机器的 clone 安装。本预览版已用该链路验证过基础
+Python fallback 能力；目标机器仍需要按实际环境复查 Office COM。
 
 ```powershell
-Set-Location D:\src
+$cloneRoot = Join-Path $env:TEMP "docrt-clean-clone"
+Remove-Item -Recurse -Force $cloneRoot -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $cloneRoot | Out-Null
+Set-Location $cloneRoot
 git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
+Set-Location .\codex-local-doc-runtime
+uv sync --dev
+uv run docrt doctor --agent
+uv run docrt agent-config
+uv run docrt read-docx examples\fixtures\sample.docx
+uv run docrt search-pdf examples\fixtures\sample.pdf "sample"
+uv run docrt storage-report
 ```
 
-## Project Structure
+这套演练不会证明 Word/Excel COM 可用。Office COM 必须在目标机器上安装 Word/Excel 后执行：
+
+```powershell
+uv run docrt doctor --agent --office-smoke
+```
+
+## 开发验证
+
+Python：
+
+```powershell
+uv sync --dev
+uv run ruff format .
+uv run ruff check .
+uv run pytest
+uv run pytest --cov=docrt
+```
+
+Rust：
+
+```powershell
+$env:PYO3_PYTHON = (Resolve-Path .venv\Scripts\python.exe).Path
+$pythonBase = (& $env:PYO3_PYTHON -c "import sys; print(sys.base_prefix)").Trim()
+$env:PATH = "$pythonBase;$env:PATH"
+cargo fmt --check --manifest-path crates\docrt-core\Cargo.toml
+cargo clippy --manifest-path crates\docrt-core\Cargo.toml -- -D warnings
+cargo test --manifest-path crates\docrt-core\Cargo.toml
+uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
+```
+
+本地最终验收：
+
+```powershell
+Set-Location D:\project\python\codex-local-doc-runtime
+uv sync --dev
+uv run ruff format .
+uv run ruff check .
+uv run pytest
+uv run docrt doctor
+uv run docrt doctor --agent
+uv run docrt agent-config
+uv run docrt storage-report
+uv run docrt clean --logs --work --cache
+```
+
+## CI
+
+GitHub Actions 使用 `windows-latest`，当前覆盖：
+
+- `uv sync --dev`
+- `uv run ruff format --check .`
+- `uv run ruff check .`
+- `uv run pytest`
+- `uv run pytest --cov=docrt`
+- `cargo fmt --check`
+- `cargo clippy -- -D warnings`
+- `cargo test`
+- `uv run maturin develop`
+- CLI smoke
+
+CI 不验证桌面版 Word/Excel COM。需要在本机运行 `doctor --agent --office-smoke`。
+
+## 项目结构
 
 ```text
 codex-local-doc-runtime/
@@ -410,8 +415,10 @@ codex-local-doc-runtime/
   docs/
     adr/
     architecture.md
-  schemas/
+    patch-protocol.md
+    task-manifest.md
   examples/
+  schemas/
   src/docrt/
   tests/
   CHANGELOG.md
@@ -423,31 +430,16 @@ codex-local-doc-runtime/
   uv.lock
 ```
 
-## Architecture Notes
+## 相关文档
 
-Read `docs/architecture.md` for the runtime design and `docs/adr/` for the main
-technical decisions.
+- `docs/codex-integration.md`：Codex/Agent 集成规则
+- `docs/patch-protocol.md`：DOCX/XLSX patch 协议
+- `docs/task-manifest.md`：Agent task 协议
+- `docs/pdf-annotation.md`：PDF 追加批注协议
+- `docs/storage-management.md`：缓存和中间产物清理
+- `docs/troubleshooting.md`：错误恢复建议
+- `docs/adr/`：架构决策记录
 
-Read `docs/codex-integration.md` for Agent routing rules and failure-handling
-guidance.
+## License
 
-Read `docs/patch-protocol.md` for DOCX/XLSX patch JSON operations.
-
-Read `docs/task-manifest.md` for replayable Agent task manifests.
-
-Read `docs/troubleshooting.md` for error-code recovery guidance.
-
-Read `docs/pdf-annotation.md` for safe additive PDF annotation.
-
-Read `docs/batch-and-cache-design.md` for fingerprint, cache, index, and search
-workflows.
-
-Read `docs/storage-management.md` for dry-run-first cleanup commands and
-scheduled cleanup examples.
-
-The most important boundaries are:
-
-- CLI output is a JSON contract.
-- Office COM conversion is isolated in subprocess workers.
-- Runtime outputs stay under ignored local directories.
-- `uv` is the supported environment and execution path.
+MIT

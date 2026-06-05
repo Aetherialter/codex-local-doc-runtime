@@ -45,7 +45,13 @@ def test_schema_validation_for_patch_task_and_result(tmp_path: Path) -> None:
         json.dumps(
             {
                 "document_type": "docx",
-                "operations": [{"type": "replace_text", "find": "Draft", "replace": "Ready"}],
+                "operations": [
+                    {
+                        "type": "replace_heading",
+                        "heading_text": "Draft",
+                        "text": "Ready",
+                    }
+                ],
             }
         ),
         encoding="utf-8",

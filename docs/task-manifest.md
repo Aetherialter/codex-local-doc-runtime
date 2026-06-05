@@ -45,6 +45,7 @@ Supported tasks:
 - `docx-to-pdf`
 - `xlsx-to-pdf`
 - `render-pdf`
+- `search-pdf`
 
 ## Dry Run
 
@@ -69,6 +70,17 @@ would be executed without modifying documents.
   "input": "examples/fixtures/sample.docx",
   "patch": "work/patch.docx.json",
   "output": "outputs/tasks/sample.patched.docx"
+}
+```
+
+## PDF Search Task
+
+```json
+{
+  "task": "search-pdf",
+  "input": "examples/fixtures/sample.pdf",
+  "query": "sample",
+  "output": "outputs/tasks/sample.pdf.search.json"
 }
 ```
 

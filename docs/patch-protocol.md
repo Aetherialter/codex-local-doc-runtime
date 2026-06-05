@@ -33,6 +33,13 @@ Patch shape:
       "text": "replacement paragraph"
     },
     {
+      "type": "replace_heading",
+      "heading_text": "Old heading",
+      "heading_style": "Heading 1",
+      "match": "exact",
+      "text": "Replacement heading"
+    },
+    {
       "type": "replace_table_cell",
       "table_index": 0,
       "row_index": 1,
@@ -48,7 +55,11 @@ Supported DOCX operations:
 
 - `replace_text`
 - `replace_paragraph`
+- `replace_heading`
 - `replace_table_cell`
+
+`replace_heading` targets paragraphs whose style is a heading style. Use
+`heading_text`, `heading_style`, or both. `match` can be `exact` or `contains`.
 
 ## XLSX Patch
 

@@ -20,6 +20,7 @@ uv sync --dev
 uv run docrt doctor --agent --office-smoke
 uv run docrt agent-config
 uv run docrt inspect-pdf .\path\to\sample.pdf
+uv run docrt search-pdf .\path\to\sample.pdf sample
 uv run docrt render-pdf .\path\to\sample.pdf
 ```
 

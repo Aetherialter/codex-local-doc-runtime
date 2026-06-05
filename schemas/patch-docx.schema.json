@@ -37,6 +37,24 @@
           },
           {
             "type": "object",
+            "required": ["type", "text"],
+            "anyOf": [
+              { "required": ["heading_text"] },
+              { "required": ["heading_style"] }
+            ],
+            "properties": {
+              "type": { "const": "replace_heading" },
+              "heading_text": { "type": "string" },
+              "heading_style": { "type": "string" },
+              "match": { "enum": ["exact", "contains"] },
+              "text": { "type": "string" },
+              "max_replacements": { "type": "integer", "minimum": 1 },
+              "conflict_policy": { "enum": ["fail", "skip", "replace"] }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
             "required": ["type", "table_index", "row_index", "column_index", "text"],
             "properties": {
               "type": { "const": "replace_table_cell" },

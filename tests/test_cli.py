@@ -47,6 +47,29 @@ def test_inspect_pdf_output_option_writes_explicit_json(tmp_path: Path):
     assert saved["page_count"] == 1
 
 
+def test_search_pdf_command_outputs_matches(tmp_path: Path):
+    input_path = tmp_path / "sample.pdf"
+    output_path = tmp_path / "custom" / "pdf-search.json"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "hello searchable pdf")
+    document.save(input_path)
+    document.close()
+
+    result = runner.invoke(
+        app,
+        ["search-pdf", str(input_path), "searchable", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    saved = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["operation"] == "search-pdf"
+    assert payload["data"]["count"] == 1
+    assert saved["matches"][0]["page_number"] == 1
+
+
 def test_inspect_xlsx_output_option_writes_explicit_json(tmp_path: Path):
     input_path = tmp_path / "sample.xlsx"
     output_path = tmp_path / "custom" / "xlsx.json"

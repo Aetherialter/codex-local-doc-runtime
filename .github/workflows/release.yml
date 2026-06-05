@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $Tag = $env:GITHUB_REF_NAME
+          $Version = $Tag -replace '^v', ''
+          $NotesFile = "docs\release-notes-$Version.md"
+          if (-not (Test-Path $NotesFile)) {
+            $NotesFile = "CHANGELOG.md"
+          }
+
+          gh release create $Tag `
+            --title "$Tag" `
+            --notes-file $NotesFile `
+            --prerelease
