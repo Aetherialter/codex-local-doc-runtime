@@ -17,6 +17,7 @@ from docrt.paths import (
     ValidationError,
     default_inspect_output,
     default_render_output_dir,
+    path_resolution,
     validate_input_path,
 )
 from docrt.pdf_ops import inspect_pdf, render_pdf, search_pdf
@@ -80,6 +81,7 @@ def explain_task_manifest(path: str | Path) -> dict[str, object]:
         "generates": _unique(_collect_paths(steps, "generates")),
         "patches": _unique(_collect_paths(steps, "patches")),
         "expects": _unique(_collect_paths(steps, "expects")),
+        "path_resolution": _path_resolution_summary(steps),
         "requires_office_com": any(_requires_office_com(step["task"]) for step in steps),
         "produces_intermediate_artifacts": any(
             step["task"] in {"inspect-docx", "inspect-pdf", "inspect-xlsx", "render-pdf"}
@@ -381,6 +383,25 @@ def _collect_paths(steps: list[dict[str, object]], key: str) -> list[str]:
         if isinstance(value, list):
             paths.extend(str(item) for item in value)
     return paths
+
+
+def _path_resolution_summary(steps: list[dict[str, object]]) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for step in steps:
+        for key in ("reads", "writes", "generates", "patches", "expects"):
+            value = step.get(key, [])
+            if not isinstance(value, list):
+                continue
+            for raw_path in value:
+                text = str(raw_path)
+                if text in seen:
+                    continue
+                seen.add(text)
+                record = path_resolution(text)
+                record["role"] = key
+                records.append(record)
+    return records
 
 
 def _requires_office_com(task: str) -> bool:

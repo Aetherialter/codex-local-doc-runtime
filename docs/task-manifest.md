@@ -17,7 +17,8 @@ uv run docrt explain-task task.json
 
 `explain-task` returns JSON describing files that will be read, modified, or
 generated, whether Office COM is required, whether intermediate artifacts may be
-created, and whether every step supports dry-run planning.
+created, how relative paths resolve from the current working directory, and
+whether every step supports dry-run planning.
 
 `supports_native_dry_run` means the underlying operation can validate and plan
 without writing output files. In this preview, only `patch-docx` and
@@ -95,6 +96,11 @@ page numbers such as `"1"`, `"1-3"`, or `"1,3-5"`.
 
 Failures use the same JSON result error fields as direct CLI commands, including
 `error_code`, `error_message`, `log_path`, and `diagnostic_report_path`.
+
+When paths are missing, `error_message` includes the original path, current
+working directory, resolved absolute path, and expected extension set. Use
+`explain-task` first when a manifest uses relative paths; its `path_resolution`
+array shows each read/write path, whether it exists, and how it resolves.
 
 ## Multi-Step Workflow
 

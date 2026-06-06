@@ -4,7 +4,13 @@ import pytest
 
 from docrt.config import Config
 from docrt.models import ErrorCode
-from docrt.paths import ValidationError, default_inspect_output, normalize_path, validate_input_path
+from docrt.paths import (
+    ValidationError,
+    default_inspect_output,
+    normalize_path,
+    path_resolution,
+    validate_input_path,
+)
 
 
 def test_config_cli_timeout_override():
@@ -23,6 +29,22 @@ def test_missing_file_is_classified(tmp_path: Path):
     with pytest.raises(ValidationError) as exc_info:
         validate_input_path(tmp_path / "missing.docx", {".docx"})
     assert exc_info.value.error_code == ErrorCode.FILE_NOT_FOUND
+    message = str(exc_info.value)
+    assert "original=" in message
+    assert "cwd=" in message
+    assert "expected_extensions=.docx" in message
+
+
+def test_path_resolution_reports_relative_path_context(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = path_resolution("missing.docx")
+
+    assert result["input"] == "missing.docx"
+    assert result["is_absolute"] is False
+    assert result["cwd"] == str(tmp_path)
+    assert result["resolved"] == str((tmp_path / "missing.docx").resolve())
+    assert result["exists"] is False
 
 
 def test_unsupported_format_is_classified(tmp_path: Path):

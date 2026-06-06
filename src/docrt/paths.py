@@ -21,7 +21,10 @@ def normalize_path(path: str | Path) -> Path:
 def validate_input_path(path: str | Path, extensions: set[str]) -> Path:
     normalized = normalize_path(path)
     if not normalized.exists():
-        raise ValidationError(ErrorCode.FILE_NOT_FOUND, f"File not found: {normalized}")
+        raise ValidationError(
+            ErrorCode.FILE_NOT_FOUND,
+            _missing_file_message(path, normalized, extensions),
+        )
     if normalized.suffix.lower() not in extensions:
         raise ValidationError(
             ErrorCode.UNSUPPORTED_FORMAT,
@@ -81,3 +84,24 @@ def default_inspect_output(input_path: Path, outputs_dir: Path) -> Path:
 
 def default_render_output_dir(input_path: Path, outputs_dir: Path) -> Path:
     return outputs_dir / input_path.stem
+
+
+def path_resolution(path: str | Path) -> dict[str, object]:
+    raw = Path(path).expanduser()
+    normalized = normalize_path(path)
+    return {
+        "input": str(path),
+        "is_absolute": raw.is_absolute(),
+        "cwd": str(Path.cwd()),
+        "resolved": str(normalized),
+        "exists": normalized.exists(),
+        "suffix": normalized.suffix.lower(),
+    }
+
+
+def _missing_file_message(path: str | Path, normalized: Path, extensions: set[str]) -> str:
+    expected = ", ".join(sorted(extensions))
+    return (
+        f"File not found: {normalized}; original={path!s}; cwd={Path.cwd()}; "
+        f"expected_extensions={expected}"
+    )

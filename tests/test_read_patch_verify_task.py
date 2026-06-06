@@ -489,6 +489,10 @@ def test_explain_task_manifest_reports_agent_effects(tmp_path: Path):
     assert str(output_path) in result["writes"]
     assert str(output_path) in result["steps"][1]["reads"]
     assert str(patch_path) in result["patches"]
+    assert any(
+        item["input"] == str(input_path) and item["exists"] is False
+        for item in result["path_resolution"]
+    )
     assert result["requires_office_com"] is False
     assert result["supports_dry_run"] is True
     assert result["supports_native_dry_run"] is False

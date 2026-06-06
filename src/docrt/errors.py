@@ -14,7 +14,7 @@ from docrt.recovery import recovery_actions
 from docrt.timeutil import utc_now_iso
 
 SENSITIVE_KEY_RE = re.compile(r"(token|secret|password|apikey|api_key|authorization)", re.I)
-WINDOWS_PATH_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]:\\[^\"'\r\n]+)")
+WINDOWS_PATH_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]:\\[^\"';\r\n]+)")
 USER_HOME = str(Path.home())
 
 

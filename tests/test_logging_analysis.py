@@ -85,13 +85,19 @@ def test_analyze_logs_groups_errors_and_recommends_fixes(tmp_path: Path, monkeyp
 def test_error_event_sanitizes_windows_paths() -> None:
     error = ValidationError(
         ErrorCode.FILE_NOT_FOUND,
-        r"File not found: D:\project\python\secret\missing.docx",
+        (
+            r"File not found: D:\project\python\secret\missing.docx; "
+            r"original=D:\project\python\secret\missing.docx; "
+            r"cwd=D:\project\python\secret; expected_extensions=.docx"
+        ),
     )
 
     event = build_error_event(error, run_id="run", operation="read-docx")
 
     assert "D:\\project\\python\\secret" not in event["message"]
     assert "<path:missing.docx>" in event["message"]
+    assert "expected_extensions=.docx" in event["message"]
+    assert "<path:secret; expected_extensions=.docx>" not in event["message"]
 
 
 def test_error_event_uses_failure_frame_module() -> None:
