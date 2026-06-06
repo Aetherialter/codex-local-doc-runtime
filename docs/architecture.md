@@ -31,6 +31,10 @@ machine-readable results instead of interactive desktop workflows.
   functions.
 - `docrt.patch_ops`: backward-compatible facade that exports `patch_docx` and
   `patch_xlsx`.
+- `docrt.log_analysis`: reads persisted error JSONL logs and groups recurring
+  failures by error code, operation, module, and exception type.
+- `docrt.repair_plan`: converts log-analysis output into a ranked, persisted
+  next-fix plan without auto-applying risky changes.
 - `docrt.office_convert`: parent-side Office conversion orchestration.
 - `docrt.office_worker`: subprocess entrypoint for Word and Excel COM work.
 - `docrt.office_process`: Office process snapshots and cleanup diagnostics.

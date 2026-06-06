@@ -9,13 +9,18 @@ from docrt.config import Config
 from docrt.jsonutil import dump_file
 from docrt.log_analysis import analyze_logs
 from docrt.maintenance import maintenance_report
+from docrt.repair_plan import repair_plan
 from docrt.timeutil import utc_now_iso
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--job-id", required=True)
-    parser.add_argument("--task", required=True, choices=["maintenance", "analyze-logs"])
+    parser.add_argument(
+        "--task",
+        required=True,
+        choices=["maintenance", "analyze-logs", "repair-plan"],
+    )
     parser.add_argument("--status", required=True)
     parser.add_argument("--result", required=True)
     parser.add_argument("--days", type=int, default=7)
@@ -28,8 +33,10 @@ def main() -> int:
     try:
         if args.task == "maintenance":
             data = maintenance_report(config, analyze_days=args.days)
-        else:
+        elif args.task == "analyze-logs":
             data = analyze_logs(config, days=args.days)
+        else:
+            data = repair_plan(config, days=args.days)
         result = {
             "ok": True,
             "job_id": args.job_id,

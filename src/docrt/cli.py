@@ -35,6 +35,7 @@ from docrt.paths import (
 from docrt.pdf_annotate import annotate_pdf
 from docrt.pdf_ops import inspect_pdf, render_pdf, search_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
+from docrt.repair_plan import repair_plan
 from docrt.runner import run_operation
 from docrt.schema_ops import validate_patch, validate_result, validate_task
 from docrt.storage_ops import clean, storage_report
@@ -876,6 +877,30 @@ def recent_errors_cmd(
         lambda _run_id, cfg, _logger: recent_errors(cfg, limit=limit),
         config=config,
         backend="log-analysis",
+    )
+    _emit(result)
+
+
+@app.command("repair-plan")
+def repair_plan_cmd(
+    days: Annotated[int, typer.Option("--days", min=1)] = 30,
+    limit: Annotated[int, typer.Option("--limit", min=0)] = 200,
+    no_persist: Annotated[bool, typer.Option("--no-persist")] = False,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "repair-plan",
+        lambda _run_id, cfg, _logger: repair_plan(
+            cfg,
+            days=days,
+            limit=limit,
+            persist=not no_persist,
+        ),
+        config=config,
+        backend="repair-plan",
     )
     _emit(result)
 

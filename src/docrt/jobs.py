@@ -9,7 +9,7 @@ from docrt.config import Config
 from docrt.jsonutil import dump_file
 from docrt.timeutil import make_run_id, utc_now_iso
 
-SUPPORTED_BACKGROUND_TASKS = {"maintenance", "analyze-logs"}
+SUPPORTED_BACKGROUND_TASKS = {"maintenance", "analyze-logs", "repair-plan"}
 
 
 def start_job(config: Config, task: str, *, args: list[str] | None = None) -> dict[str, object]:

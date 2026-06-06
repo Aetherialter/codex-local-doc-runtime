@@ -36,6 +36,12 @@ def build_error_event(
 ) -> dict[str, Any]:
     error_code = classify_exception(exc).value
     sanitized_context = sanitize_context(context or {})
+    frame = failure_frame(exc)
+    resolved_module = module
+    resolved_function = function
+    if frame:
+        resolved_module = frame["module"]
+        resolved_function = frame["function"]
     return {
         "schema_version": "1.0",
         "event_id": f"{run_id}-error",
@@ -43,8 +49,8 @@ def build_error_event(
         "timestamp": utc_now_iso(),
         "level": level,
         "operation": operation,
-        "module": module,
-        "function": function,
+        "module": resolved_module,
+        "function": resolved_function,
         "error_code": error_code,
         "exception_type": type(exc).__name__,
         "message": sanitize_text(str(exc)),
@@ -59,6 +65,28 @@ def build_error_event(
         },
         "recovery_actions": recovery_actions(error_code),
     }
+
+
+def failure_frame(exc: Exception) -> dict[str, str] | None:
+    traceback = exc.__traceback__
+    frames = tb.extract_tb(traceback) if traceback else []
+    best: dict[str, str] | None = None
+    fallback: dict[str, str] | None = None
+    for frame in frames:
+        module = _module_from_filename(frame.filename)
+        if not module:
+            continue
+        current = {
+            "module": module,
+            "function": frame.name,
+            "filename": sanitize_text(frame.filename),
+            "line": str(frame.lineno),
+        }
+        if module.startswith("docrt.") and module not in {"docrt.cli", "docrt.runner"}:
+            best = current
+        elif module.startswith("docrt."):
+            fallback = current
+    return best or fallback
 
 
 def sanitize_context(value: Any) -> Any:
@@ -105,3 +133,15 @@ def _redact_windows_path(match: re.Match[str]) -> str:
     raw_path = match.group(1).rstrip()
     trailing = match.group(1)[len(raw_path) :]
     return f"<path:{Path(raw_path).name}>{trailing}"
+
+
+def _module_from_filename(filename: str) -> str | None:
+    path = Path(filename)
+    parts = path.with_suffix("").parts
+    if "docrt" not in parts:
+        return None
+    docrt_index = max(index for index, part in enumerate(parts) if part == "docrt")
+    module_parts = parts[docrt_index:]
+    if not module_parts:
+        return None
+    return ".".join(module_parts)

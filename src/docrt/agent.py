@@ -95,12 +95,19 @@ def _commands() -> dict[str, list[str] | str]:
             "uv run docrt clean --logs --work --cache",
             "uv run docrt clean --logs --work --cache --older-than 14 --yes",
         ],
+        "maintenance": [
+            "uv run docrt analyze-logs --days 30",
+            "uv run docrt repair-plan --days 30",
+            "uv run docrt maintenance",
+            "uv run docrt job-start repair-plan --days 30",
+        ],
     }
 
 
 def _agents_md_fragment(commands: dict[str, list[str] | str]) -> str:
     safe_edit = "\n".join(str(command) for command in commands["safe_edit"])
     storage = "\n".join(str(command) for command in commands["storage"])
+    maintenance = "\n".join(str(command) for command in commands["maintenance"])
     task = "\n".join(str(command) for command in commands["task"])
     return f"""# AGENTS.md Local Document Runtime Fragment
 
@@ -140,6 +147,12 @@ Manage local runtime artifacts with:
 
 ```powershell
 {storage}
+```
+
+Before a development pass, review recent runtime feedback with:
+
+```powershell
+{maintenance}
 ```
 
 Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office

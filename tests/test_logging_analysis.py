@@ -8,7 +8,9 @@ from docrt.errors import build_error_event
 from docrt.log_analysis import analyze_logs
 from docrt.logging import JsonlLogger
 from docrt.models import ErrorCode
+from docrt.patch_common import require_string
 from docrt.paths import ValidationError
+from docrt.repair_plan import repair_plan
 from docrt.runner import run_operation
 
 
@@ -90,3 +92,53 @@ def test_error_event_sanitizes_windows_paths() -> None:
 
     assert "D:\\project\\python\\secret" not in event["message"]
     assert "<path:missing.docx>" in event["message"]
+
+
+def test_error_event_uses_failure_frame_module() -> None:
+    try:
+        require_string({}, "missing")
+    except ValidationError as exc:
+        event = build_error_event(exc, run_id="run", operation="validate-patch")
+
+    assert event["module"] == "docrt.patch_common"
+    assert event["function"] == "require_string"
+
+
+def test_repair_plan_prioritizes_and_persists_next_actions(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work", state_dir="state")
+    log_path = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text(
+        "\n".join(
+            json.dumps(event)
+            for event in [
+                {
+                    "timestamp": "2026-06-06T00:00:00.000Z",
+                    "operation": "docx-to-pdf",
+                    "module": "docrt.office_convert",
+                    "error_code": "OFFICE_TIMEOUT",
+                    "exception_type": "TimeoutExpired",
+                    "message": "timeout",
+                },
+                {
+                    "timestamp": "2026-06-06T00:01:00.000Z",
+                    "operation": "read-docx",
+                    "module": "docrt.paths",
+                    "error_code": "FILE_NOT_FOUND",
+                    "exception_type": "ValidationError",
+                    "message": "missing",
+                },
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = repair_plan(config, days=30)
+
+    assert result["item_count"] == 2
+    assert result["items"][0]["issue_id"] == "OFFICE_TIMEOUT:docx-to-pdf"
+    assert result["items"][0]["priority"] == "P1"
+    assert result["items"][0]["requires_confirmation"] is True
+    assert Path(str(result["state_path"])).exists()

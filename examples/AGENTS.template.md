@@ -50,6 +50,9 @@ uv run docrt fingerprint <path>
 uv run docrt batch-fingerprint <path> [<path> ...]
 uv run docrt storage-report
 uv run docrt clean --logs --work --cache
+uv run docrt analyze-logs --days 30
+uv run docrt repair-plan --days 30
+uv run docrt maintenance
 ```
 
 Rules:
@@ -58,6 +61,8 @@ Rules:
   when the environment is unknown.
 - Inspect `error_code`, `error_message`, `log_path`, and
   `diagnostic_report_path` before changing code or retrying.
+- Run `uv run docrt repair-plan --days 30` before maintenance development
+  passes to rank recent runtime failures by priority and risk.
 - Keep generated files under `outputs/`, `logs/`, or `work/`.
 - Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office
   dialogs, or complex PDF original-content editing are supported by `docrt`.

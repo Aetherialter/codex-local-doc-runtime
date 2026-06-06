@@ -57,6 +57,7 @@ uv run docrt docx-to-pdf <input> [output]
 uv run docrt xlsx-to-pdf <input> [output]
 uv run docrt storage-report
 uv run docrt clean --logs --work --cache
+uv run docrt repair-plan --days 30
 ```
 
 Use explicit output paths when repeatability matters:

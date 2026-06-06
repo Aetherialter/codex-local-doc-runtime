@@ -43,12 +43,18 @@ commands to summarize recent failures and generate repair suggestions:
 uv run docrt analyze-logs
 uv run docrt analyze-logs --days 30 --limit 200
 uv run docrt recent-errors --limit 20
+uv run docrt repair-plan --days 30
 uv run docrt maintenance
 ```
 
 `analyze-logs` groups errors by `error_code` and operation, reports affected
 modules, and emits suggested files plus validation commands for the next
 maintenance pass.
+
+`repair-plan` turns the analysis into a ranked next-action list with priority,
+risk, target files, validation commands, and whether the fix requires human
+confirmation. It writes `state/repair-plan.latest.json` by default and does not
+auto-apply code changes.
 
 `maintenance` stores the latest runtime and log-analysis summaries in `state/`
 so the next development pass can start from recent evidence instead of relying
@@ -61,6 +67,7 @@ Use background jobs only for low-risk maintenance tasks:
 ```powershell
 uv run docrt job-start maintenance
 uv run docrt job-start analyze-logs --days 30
+uv run docrt job-start repair-plan --days 30
 uv run docrt job-status <job-id>
 ```
 

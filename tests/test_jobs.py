@@ -37,6 +37,18 @@ def test_start_job_runs_maintenance_and_writes_status(tmp_path: Path, monkeypatc
     assert Path(final["job"]["result_path"]).exists()
 
 
+def test_start_job_runs_repair_plan_and_writes_status(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work", state_dir="state")
+
+    started = start_job(config, "repair-plan", args=["--days", "30"])
+    job_id = str(started["job_id"])
+    final = _wait_for_job(config, job_id)
+
+    assert final["job"]["status"] == "succeeded"
+    assert Path(final["job"]["result_path"]).exists()
+
+
 def _wait_for_job(config: Config, job_id: str) -> dict[str, object]:
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
