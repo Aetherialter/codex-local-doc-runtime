@@ -277,6 +277,52 @@ def test_patch_xlsx_expected_value_mismatch_fails(tmp_path: Path):
     assert exc_info.value.error_code == ErrorCode.VALIDATION_FAILED
 
 
+def test_patch_xlsx_preserves_existing_cell_style(tmp_path: Path):
+    input_path = tmp_path / "sample.xlsx"
+    patch_path = tmp_path / "patch.json"
+    output_path = tmp_path / "patched.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Summary"
+    sheet["B2"] = 12
+    sheet["B2"].number_format = "0.00"
+    sheet["B2"].font = openpyxl.styles.Font(bold=True)
+    sheet["B2"].fill = openpyxl.styles.PatternFill("solid", fgColor="FFFF00")
+    workbook.save(input_path)
+    patch_path.write_text(
+        json.dumps(
+            {
+                "document_type": "xlsx",
+                "operations": [
+                    {
+                        "type": "set_cell",
+                        "sheet": "Summary",
+                        "cell": "B2",
+                        "expected_value": 12,
+                        "value": 13,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = patch_xlsx(input_path, patch_path, output_path)
+    patched = openpyxl.load_workbook(output_path)
+    try:
+        cell = patched["Summary"]["B2"]
+        assert cell.value == 13
+        assert cell.number_format == "0.00"
+        assert cell.font.bold is True
+        assert cell.fill.fgColor.rgb == "00FFFF00"
+        assert (
+            result["patch_summary"]["changes"][0]["format_preservation"]
+            == "preserve_existing_cell_style"
+        )
+    finally:
+        patched.close()
+
+
 def test_patch_rejects_invalid_json(tmp_path: Path):
     input_path = tmp_path / "sample.docx"
     patch_path = tmp_path / "patch.json"

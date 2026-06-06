@@ -105,6 +105,7 @@ def _xlsx_set_cell(workbook, operation: dict[str, Any], *, dry_run: bool) -> dic
         "value": value,
         "planned_count": 1,
         "applied_count": 0 if dry_run else 1,
+        "format_preservation": "preserve_existing_cell_style",
     }
 
 
@@ -155,6 +156,7 @@ def _xlsx_set_range_values(
                     "value": value,
                     "planned_count": 1,
                     "applied_count": 0 if dry_run else 1,
+                    "format_preservation": "preserve_existing_cell_style",
                 }
             )
     return changes

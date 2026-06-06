@@ -121,6 +121,12 @@ Supported XLSX operations:
 - `add_sheet`
 - `rename_sheet`
 
+`set_cell` and `set_range_values` preserve the existing cell style and number
+format when replacing values. The patch result marks these changes with
+`format_preservation=preserve_existing_cell_style`. New sheets use openpyxl's
+default sheet styling. Charts, pivot tables, macros, and external links are not
+treated as patch fidelity targets in this preview.
+
 ## Result
 
 Patch commands return the normal JSON result shape. The `data` field contains:

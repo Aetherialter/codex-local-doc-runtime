@@ -286,6 +286,10 @@ XLSX 当前支持：
 - `add_sheet`
 - `rename_sheet`
 
+XLSX 值修改会保留目标单元格已有样式和数字格式，并在 patch result 中标记
+`format_preservation=preserve_existing_cell_style`。新增 sheet 使用 openpyxl 默认样式；
+复杂图表、透视表、宏和外部链接不作为 patch 保真目标。
+
 PDF 当前只承诺读取、渲染、搜索和追加批注，不承诺复杂原文编辑。
 
 ## 运行产物和清理
