@@ -129,6 +129,57 @@ def test_analyze_logs_groups_errors_and_recommends_fixes(tmp_path: Path, monkeyp
     assert result["recommendations"][0]["affected_operations"] == ["patch-docx"]
 
 
+def test_analyze_logs_marks_issue_recovered_after_later_success(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    success_log = tmp_path / "logs" / "success.jsonl"
+    error_log.parent.mkdir(parents=True)
+    error_log.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-06-06T00:00:00.000Z",
+                "operation": "xlsx-to-pdf",
+                "module": "excel-com",
+                "error_code": "EXCEL_CONVERSION_FAILED",
+                "exception_type": "ValidationError",
+                "message": "excel failed",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    success_log.write_text(
+        json.dumps(
+            {
+                "run_id": "success",
+                "operation": "xlsx-to-pdf",
+                "event": "finished",
+                "result": {
+                    "ok": True,
+                    "operation": "xlsx-to-pdf",
+                    "backend": "excel-com",
+                    "run_id": "success",
+                    "ended_at": "2026-06-06T00:10:00.000Z",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_logs(config, days=30)
+    issue = result["issues"][0]
+
+    assert result["scanned_success_events"] == 1
+    assert issue["issue_id"] == "EXCEL_CONVERSION_FAILED:xlsx-to-pdf"
+    assert issue["status"] == "observed_recovered"
+    assert issue["success_after_last_error"] is True
+    assert issue["last_success_at"] == "2026-06-06T00:10:00.000Z"
+
+
 def test_analyze_logs_reads_legacy_run_log_failure_results(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
@@ -312,3 +363,62 @@ def test_repair_plan_prioritizes_and_persists_next_actions(tmp_path: Path, monke
     assert result["items"][0]["priority"] == "P1"
     assert result["items"][0]["requires_confirmation"] is True
     assert Path(str(result["state_path"])).exists()
+
+
+def test_repair_plan_demotes_recovered_issues(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work", state_dir="state")
+    error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    error_log.parent.mkdir(parents=True)
+    error_log.write_text(
+        "\n".join(
+            json.dumps(event)
+            for event in [
+                {
+                    "timestamp": "2026-06-06T00:00:00.000Z",
+                    "operation": "xlsx-to-pdf",
+                    "module": "excel-com",
+                    "error_code": "EXCEL_CONVERSION_FAILED",
+                    "exception_type": "ValidationError",
+                    "message": "excel failed",
+                },
+                {
+                    "timestamp": "2026-06-06T00:30:00.000Z",
+                    "operation": "read-docx",
+                    "module": "docrt.paths",
+                    "error_code": "FILE_NOT_FOUND",
+                    "exception_type": "ValidationError",
+                    "message": "missing",
+                },
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "logs" / "success.jsonl").write_text(
+        json.dumps(
+            {
+                "run_id": "success",
+                "operation": "xlsx-to-pdf",
+                "event": "finished",
+                "result": {
+                    "ok": True,
+                    "operation": "xlsx-to-pdf",
+                    "backend": "excel-com",
+                    "run_id": "success",
+                    "ended_at": "2026-06-06T00:10:00.000Z",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = repair_plan(config, days=30)
+
+    assert result["items"][0]["issue_id"] == "FILE_NOT_FOUND:read-docx"
+    assert result["items"][1]["issue_id"] == "EXCEL_CONVERSION_FAILED:xlsx-to-pdf"
+    assert result["items"][1]["priority"] == "P4"
+    assert result["items"][1]["status"] == "observed_recovered"
+    assert result["items"][1]["auto_apply_allowed"] is False
+    assert "successful run" in str(result["items"][1]["next_step"])

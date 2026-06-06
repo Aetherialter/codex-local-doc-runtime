@@ -19,7 +19,9 @@ def analyze_logs(
     include_events: bool = False,
 ) -> dict[str, object]:
     events = _load_error_events(config, days=days, limit=limit)
-    issues = _summarize_events(events)
+    success_events = _load_success_events(config, days=days)
+    successes_by_operation = _latest_success_by_operation(success_events)
+    issues = _summarize_events(events, successes_by_operation=successes_by_operation)
     recommendations = []
     for issue in issues:
         recommendations.extend(recommendations_for_issue(issue))
@@ -27,6 +29,7 @@ def analyze_logs(
         "days": days,
         "limit": limit,
         "scanned_error_events": len(events),
+        "scanned_success_events": len(success_events),
         "issue_count": len(issues),
         "issues": issues,
         "recommendations": recommendations,
@@ -60,6 +63,28 @@ def _load_error_events(config: Config, *, days: int, limit: int) -> list[dict[st
                 events.append(normalized)
     events.sort(key=lambda item: str(item.get("timestamp") or ""), reverse=True)
     return _dedupe_events(events)[: max(limit, 0)]
+
+
+def _load_success_events(config: Config, *, days: int) -> list[dict[str, Any]]:
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    events: list[dict[str, Any]] = []
+    for path in _candidate_run_logs(config):
+        if _mtime(path) < cutoff:
+            continue
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            normalized = _normalize_success_event(event, source_path=path)
+            if normalized is not None:
+                events.append(normalized)
+    events.sort(key=lambda item: str(item.get("timestamp") or ""), reverse=True)
+    return _dedupe_events(events)
 
 
 def _candidate_logs(config: Config) -> list[Path]:
@@ -132,6 +157,23 @@ def _normalize_error_event(event: dict[str, Any], *, source_path: Path) -> dict[
     }
 
 
+def _normalize_success_event(event: dict[str, Any], *, source_path: Path) -> dict[str, Any] | None:
+    result = event.get("result")
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return None
+    run_id = str(result.get("run_id") or event.get("run_id") or source_path.stem)
+    return {
+        "schema_version": "1.0",
+        "event_id": f"{run_id}-success",
+        "run_id": run_id,
+        "timestamp": result.get("ended_at") or event.get("timestamp") or "",
+        "level": "info",
+        "operation": result.get("operation") or event.get("operation") or "unknown",
+        "module": result.get("backend") or "unknown",
+        "source_log": str(source_path),
+    }
+
+
 def _dedupe_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     seen: set[tuple[str, ...]] = set()
@@ -158,7 +200,25 @@ def _event_key(event: dict[str, Any]) -> tuple[str, ...]:
     )
 
 
-def _summarize_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _latest_success_by_operation(
+    success_events: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+    for event in success_events:
+        operation = str(event.get("operation") or "unknown")
+        current = latest.get(operation)
+        if current is None or _timestamp_after(
+            str(event.get("timestamp") or ""), str(current.get("timestamp") or "")
+        ):
+            latest[operation] = event
+    return latest
+
+
+def _summarize_events(
+    events: list[dict[str, Any]],
+    *,
+    successes_by_operation: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     buckets: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for event in events:
         error_code = str(event.get("error_code") or "UNKNOWN_ERROR")
@@ -170,6 +230,13 @@ def _summarize_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         modules = Counter(str(event.get("module") or "unknown") for event in bucket)
         exception_types = Counter(str(event.get("exception_type") or "unknown") for event in bucket)
         issue_id = f"{error_code}:{operation}"
+        first_seen = min(str(event.get("timestamp") or "") for event in bucket)
+        last_seen = max(str(event.get("timestamp") or "") for event in bucket)
+        latest_success = successes_by_operation.get(operation)
+        last_success_at = str(latest_success.get("timestamp") or "") if latest_success else None
+        success_after_last_error = bool(
+            last_success_at and _timestamp_after(last_success_at, last_seen)
+        )
         issues.append(
             {
                 "issue_id": issue_id,
@@ -179,8 +246,11 @@ def _summarize_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "severity": _severity(error_code, len(bucket)),
                 "modules": [name for name, _count in modules.most_common()],
                 "exception_types": [name for name, _count in exception_types.most_common()],
-                "first_seen": min(str(event.get("timestamp") or "") for event in bucket),
-                "last_seen": max(str(event.get("timestamp") or "") for event in bucket),
+                "first_seen": first_seen,
+                "last_seen": last_seen,
+                "last_success_at": last_success_at,
+                "success_after_last_error": success_after_last_error,
+                "status": "observed_recovered" if success_after_last_error else "active",
                 "sample_message": sanitize_text(str(bucket[0].get("message") or "")),
             }
         )
@@ -211,3 +281,20 @@ def _severity_rank(severity: str) -> int:
 
 def _mtime(path: Path) -> datetime:
     return datetime.fromtimestamp(path.stat().st_mtime, UTC)
+
+
+def _timestamp_after(left: str, right: str) -> bool:
+    if not left or not right:
+        return bool(left and not right)
+    left_dt = _parse_timestamp(left)
+    right_dt = _parse_timestamp(right)
+    if left_dt is not None and right_dt is not None:
+        return left_dt > right_dt
+    return left > right
+
+
+def _parse_timestamp(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None

@@ -65,6 +65,11 @@ risk, target files, validation commands, and whether the fix requires human
 confirmation. It writes `state/repair-plan.latest.json` by default and does not
 auto-apply code changes.
 
+If the same operation has a successful run after its latest error,
+`repair-plan` marks the item as `status: observed_recovered`, includes
+`last_success_at`, demotes it to `P4`, and disables auto-apply so historical
+smoke failures remain visible without driving the next development pass.
+
 `maintenance` stores the latest runtime, log-analysis, and repair-plan
 summaries in `state/` so the next development pass can start from recent
 evidence instead of relying on memory.

@@ -23,6 +23,7 @@ def repair_plan(
         "days": days,
         "limit": limit,
         "scanned_error_events": analysis["scanned_error_events"],
+        "scanned_success_events": analysis["scanned_success_events"],
         "issue_count": analysis["issue_count"],
         "item_count": len(items),
         "items": items,
@@ -52,13 +53,19 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
         severity = str(recommendation.get("severity") or issue.get("severity") or "low")
         risk = str(recommendation.get("risk") or "medium")
         count = int(recommendation.get("count") or issue.get("count") or 0)
+        status = str(issue.get("status") or "active")
+        success_after_last_error = bool(issue.get("success_after_last_error"))
         items.append(
             {
                 "issue_id": issue_id,
-                "priority": _priority(severity, risk, count),
+                "priority": _priority(severity, risk, count, success_after_last_error),
                 "severity": severity,
                 "risk": risk,
+                "status": status,
                 "count": count,
+                "last_error_at": issue.get("last_seen"),
+                "last_success_at": issue.get("last_success_at"),
+                "success_after_last_error": success_after_last_error,
                 "affected_operations": recommendation.get("affected_operations", []),
                 "affected_modules": recommendation.get("affected_modules", []),
                 "likely_cause": recommendation.get("likely_cause"),
@@ -66,8 +73,12 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
                 "suggested_fix": suggested_fix.get("summary"),
                 "validation": suggested_fix.get("validation", []),
                 "requires_confirmation": bool(recommendation.get("requires_confirmation")),
-                "auto_apply_allowed": _auto_apply_allowed(risk, recommendation),
-                "next_step": _next_step(risk, recommendation),
+                "auto_apply_allowed": _auto_apply_allowed(
+                    risk,
+                    recommendation,
+                    success_after_last_error,
+                ),
+                "next_step": _next_step(risk, recommendation, success_after_last_error),
             }
         )
     items.sort(key=_sort_key, reverse=True)
@@ -76,7 +87,9 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
     return items
 
 
-def _priority(severity: str, risk: str, count: int) -> str:
+def _priority(severity: str, risk: str, count: int, success_after_last_error: bool = False) -> str:
+    if success_after_last_error:
+        return "P4"
     severity_score = SEVERITY_RANK.get(severity, 0)
     risk_score = RISK_RANK.get(risk, 2)
     if severity_score >= 3 and count >= 3:
@@ -88,21 +101,34 @@ def _priority(severity: str, risk: str, count: int) -> str:
     return "P3"
 
 
-def _auto_apply_allowed(risk: str, recommendation: dict[str, Any]) -> bool:
+def _auto_apply_allowed(
+    risk: str,
+    recommendation: dict[str, Any],
+    success_after_last_error: bool = False,
+) -> bool:
+    if success_after_last_error:
+        return False
     return risk == "low" and not bool(recommendation.get("requires_confirmation"))
 
 
-def _next_step(risk: str, recommendation: dict[str, Any]) -> str:
-    if _auto_apply_allowed(risk, recommendation):
+def _next_step(
+    risk: str,
+    recommendation: dict[str, Any],
+    success_after_last_error: bool = False,
+) -> str:
+    if success_after_last_error:
+        return "A later successful run was observed for this operation; keep monitoring logs."
+    if _auto_apply_allowed(risk, recommendation, success_after_last_error):
         return "Implement the low-risk fix in the next development pass, then run validation."
     return "Review the proposed fix before changing core behavior."
 
 
 def _sort_key(item: dict[str, object]) -> tuple[int, int, int]:
+    active = 0 if bool(item.get("success_after_last_error")) else 1
     severity = SEVERITY_RANK.get(str(item["severity"]), 0)
     count = int(item["count"])
     risk = RISK_RANK.get(str(item["risk"]), 2)
-    return severity, count, -risk
+    return active, severity, count, -risk
 
 
 def _summary(items: list[dict[str, object]]) -> dict[str, object]:

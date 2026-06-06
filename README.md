@@ -226,6 +226,9 @@ uv run docrt maintenance
 
 `repair-plan` 会读取最近错误日志，按严重程度、出现次数和修复风险生成下一轮开发优先级，
 并默认写入 `state\repair-plan.latest.json`。它只生成计划，不自动修改核心逻辑。
+如果某个操作在最后一次错误之后已经有成功运行，计划项会标记
+`status: observed_recovered`、记录 `last_success_at`，并降级为 `P4` 继续观察，
+避免历史 smoke 失败反复干扰下一轮开发。
 `maintenance` 也会生成同一份修复计划快照，适合作为每轮开发前的入口命令。
 
 后台维护任务：
