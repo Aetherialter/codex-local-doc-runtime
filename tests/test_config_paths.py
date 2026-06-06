@@ -68,6 +68,8 @@ def test_missing_file_is_classified(tmp_path: Path):
     with pytest.raises(ValidationError) as exc_info:
         validate_input_path(tmp_path / "missing.docx", {".docx"})
     assert exc_info.value.error_code == ErrorCode.FILE_NOT_FOUND
+    assert exc_info.value.context["path_resolution"]["exists"] is False
+    assert exc_info.value.context["expected_extensions"] == [".docx"]
     message = str(exc_info.value)
     assert "original=" in message
     assert "cwd=" in message
@@ -83,6 +85,7 @@ def test_path_resolution_reports_relative_path_context(tmp_path: Path, monkeypat
     assert result["is_absolute"] is False
     assert result["cwd"] == str(tmp_path)
     assert result["resolved"] == str((tmp_path / "missing.docx").resolve())
+    assert result["resolved_path"] == str((tmp_path / "missing.docx").resolve())
     assert result["exists"] is False
 
 

@@ -32,6 +32,10 @@ def validate_input_path(path: str | Path, extensions: set[str]) -> Path:
         raise ValidationError(
             ErrorCode.FILE_NOT_FOUND,
             _missing_file_message(path, normalized, extensions),
+            context={
+                "path_resolution": path_resolution(path),
+                "expected_extensions": sorted(extensions),
+            },
         )
     if normalized.suffix.lower() not in extensions:
         raise ValidationError(
@@ -102,6 +106,7 @@ def path_resolution(path: str | Path) -> dict[str, object]:
         "is_absolute": raw.is_absolute(),
         "cwd": str(Path.cwd()),
         "resolved": str(normalized),
+        "resolved_path": str(normalized),
         "exists": normalized.exists(),
         "suffix": normalized.suffix.lower(),
     }

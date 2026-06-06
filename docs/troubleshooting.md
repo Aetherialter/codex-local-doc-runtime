@@ -39,8 +39,8 @@ uv run docrt validate-task path\to\task.json
 ```
 
 If a command reports `diagnostic_report_path`, read that JSON before retrying.
-For `FILE_NOT_FOUND`, inspect the error message fields `original`, `cwd`,
-resolved path, and `expected_extensions`. For task manifests, run
+For `FILE_NOT_FOUND`, inspect `error_event.context.path_resolution` and
+`expected_extensions` in the diagnostic JSON. For task manifests, run
 `uv run docrt explain-task <task.json>` and inspect `path_resolution`.
 
 ## Error Log Analysis

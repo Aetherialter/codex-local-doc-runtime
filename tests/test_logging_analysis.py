@@ -9,7 +9,7 @@ from docrt.log_analysis import analyze_logs
 from docrt.logging import JsonlLogger
 from docrt.models import ErrorCode
 from docrt.patch_common import require_string
-from docrt.paths import ValidationError
+from docrt.paths import ValidationError, validate_input_path
 from docrt.repair_plan import repair_plan
 from docrt.runner import run_operation
 
@@ -42,6 +42,25 @@ def test_run_operation_writes_error_event_and_diagnostic(tmp_path: Path, monkeyp
     assert event["operation"] == "patch-docx"
     assert event["error_code"] == ErrorCode.VALIDATION_FAILED.value
     assert Path(str(result.diagnostic_report_path)).exists()
+
+
+def test_run_operation_preserves_missing_file_path_resolution(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+
+    def fail(_run_id, _config, _logger):
+        validate_input_path("missing.docx", {".docx"})
+
+    result = run_operation("read-docx", fail, config=config, backend="python")
+
+    assert result.ok is False
+    error_log = next((tmp_path / "logs" / "errors").glob("*.error.jsonl"))
+    event = json.loads(error_log.read_text(encoding="utf-8").splitlines()[0])
+    resolution = event["context"]["path_resolution"]
+    assert resolution["input"]["name"] == "missing.docx"
+    assert resolution["resolved_path"]["name"] == "missing.docx"
+    assert resolution["exists"] is False
+    assert event["context"]["expected_extensions"] == [".docx"]
 
 
 def test_error_event_includes_validation_error_context() -> None:
