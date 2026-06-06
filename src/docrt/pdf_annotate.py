@@ -13,6 +13,7 @@ from docrt.paths import (
     validate_input_path,
     validate_output_path,
 )
+from docrt.pdf_safety import ensure_pdf_not_encrypted
 
 
 def annotate_pdf(
@@ -34,6 +35,7 @@ def annotate_pdf(
     document = fitz.open(str(source))
     applied: list[dict[str, object]] = []
     try:
+        ensure_pdf_not_encrypted(document)
         for annotation in annotations:
             applied.append(_apply_annotation(document, annotation))
         document.save(str(target))

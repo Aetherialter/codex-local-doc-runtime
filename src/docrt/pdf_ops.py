@@ -4,6 +4,7 @@ from pathlib import Path
 
 from docrt.paths import ensure_unlocked_for_read, validate_input_path, validate_output_path
 from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
+from docrt.pdf_safety import ensure_pdf_not_encrypted, pdf_text_layer_warnings
 
 
 def inspect_pdf(path: str | Path) -> dict[str, object]:
@@ -16,6 +17,7 @@ def inspect_pdf(path: str | Path) -> dict[str, object]:
 
     document = fitz.open(str(input_path))
     try:
+        ensure_pdf_not_encrypted(document)
         pages = []
         total_text_chars = 0
         for index, page in enumerate(document):
@@ -35,7 +37,14 @@ def inspect_pdf(path: str | Path) -> dict[str, object]:
             "page_count": document.page_count,
             "metadata": dict(document.metadata or {}),
             "has_text_layer": total_text_chars > 0,
+            "needs_ocr": total_text_chars == 0,
+            "ocr_supported": False,
+            "encryption": {
+                "is_encrypted": bool(getattr(document, "is_encrypted", False)),
+                "needs_pass": bool(getattr(document, "needs_pass", False)),
+            },
             "pages": pages,
+            "warnings": pdf_text_layer_warnings(total_text_chars),
         }
     finally:
         document.close()
@@ -60,6 +69,7 @@ def render_pdf(
     document = fitz.open(str(input_path))
     written: list[str] = []
     try:
+        ensure_pdf_not_encrypted(document)
         zoom = dpi / 72
         matrix = fitz.Matrix(zoom, zoom)
         selected_indexes = selected_page_indexes(document.page_count, pages)
@@ -98,6 +108,7 @@ def search_pdf(
     document = fitz.open(str(input_path))
     matches: list[dict[str, object]] = []
     try:
+        ensure_pdf_not_encrypted(document)
         normalized_query = query.casefold()
         selected_indexes = selected_page_indexes(document.page_count, pages)
         for index in selected_indexes:

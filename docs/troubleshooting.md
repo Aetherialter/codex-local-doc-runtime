@@ -13,6 +13,14 @@ before changing the command:
 
 - `FILE_NOT_FOUND`: check the path and current working directory.
 - `UNSUPPORTED_FORMAT`: use `.docx`, `.pdf`, or `.xlsx`.
+- `UNSUPPORTED_LEGACY_FORMAT`: convert `.doc` to `.docx` or `.xls` to `.xlsx`
+  before running `docrt`.
+- `ENCRYPTED_FILE_UNSUPPORTED`: create an unencrypted copy before running
+  `docrt`; do not place passwords in logs, task manifests, or patch files.
+- `OCR_UNSUPPORTED`: run OCR outside `docrt` first. For image-only PDFs,
+  `inspect-pdf` and `read-pdf` report `needs_ocr=true`.
+- `PDF_ORIGINAL_EDIT_UNSUPPORTED`: use `annotate-pdf` for additive comments or
+  marks; use a dedicated PDF editor for original-content editing.
 - `FILE_LOCKED`: close Word, Excel, PDF readers, sync tools, or antivirus scans
   holding the file.
 - `WORD_COM_UNAVAILABLE`: install Microsoft Word desktop edition and close
@@ -94,5 +102,5 @@ stream and `outputs/diagnostics/*.job.diagnostic.json` files as foreground CLI
 failures. The next `analyze-logs` or `repair-plan` run can therefore include
 background failures in the repair backlog.
 
-Document editing and conversion remain foreground operations in this preview so
+Document editing and conversion remain foreground operations in v1.0 so
 users can see the exact JSON result before trusting the output file.

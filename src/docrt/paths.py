@@ -7,6 +7,9 @@ from typing import Any
 from docrt.models import ErrorCode
 
 SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".xlsx"}
+LEGACY_OFFICE_EXTENSIONS = {".doc", ".xls"}
+ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
+OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 
 class ValidationError(ValueError):
@@ -38,10 +41,7 @@ def validate_input_path(path: str | Path, extensions: set[str]) -> Path:
             },
         )
     if normalized.suffix.lower() not in extensions:
-        raise ValidationError(
-            ErrorCode.UNSUPPORTED_FORMAT,
-            f"Unsupported format: {normalized.suffix or '<none>'}",
-        )
+        _raise_unsupported_format(normalized, extensions)
     if len(str(normalized)) > 260:
         raise ValidationError(
             ErrorCode.PATH_VALIDATION_FAILED,
@@ -49,6 +49,7 @@ def validate_input_path(path: str | Path, extensions: set[str]) -> Path:
         )
     if not os.access(normalized, os.R_OK):
         raise ValidationError(ErrorCode.PERMISSION_DENIED, f"File is not readable: {normalized}")
+    _validate_container_signature(normalized, extensions)
     return normalized
 
 
@@ -118,3 +119,64 @@ def _missing_file_message(path: str | Path, normalized: Path, extensions: set[st
         f"File not found: {normalized}; original={path!s}; cwd={Path.cwd()}; "
         f"expected_extensions={expected}"
     )
+
+
+def _raise_unsupported_format(path: Path, extensions: set[str]) -> None:
+    suffix = path.suffix.lower()
+    if suffix in LEGACY_OFFICE_EXTENSIONS:
+        raise ValidationError(
+            ErrorCode.UNSUPPORTED_LEGACY_FORMAT,
+            f"Legacy Office format is not supported in v1.0: {suffix}",
+            context={
+                "path_resolution": path_resolution(path),
+                "expected_extensions": sorted(extensions),
+                "suggested_conversion": ".docx" if suffix == ".doc" else ".xlsx",
+            },
+        )
+    raise ValidationError(
+        ErrorCode.UNSUPPORTED_FORMAT,
+        f"Unsupported format: {suffix or '<none>'}",
+        context={
+            "path_resolution": path_resolution(path),
+            "expected_extensions": sorted(extensions),
+        },
+    )
+
+
+def _validate_container_signature(path: Path, extensions: set[str]) -> None:
+    suffix = path.suffix.lower()
+    if suffix not in {".docx", ".xlsx"}:
+        return
+    if suffix not in extensions:
+        return
+    signature = _read_signature(path)
+    if signature.startswith(OLE_SIGNATURE):
+        raise ValidationError(
+            ErrorCode.ENCRYPTED_FILE_UNSUPPORTED,
+            (
+                f"{suffix} appears to be an encrypted or legacy OLE Office container; "
+                "password-protected Office files are not supported in v1.0"
+            ),
+            context={
+                "path_resolution": path_resolution(path),
+                "container_signature": "ole-compound-file",
+                "supported_container": "zip-openxml",
+            },
+        )
+    if signature and not any(signature.startswith(item) for item in ZIP_SIGNATURES):
+        raise ValidationError(
+            ErrorCode.UNSUPPORTED_FORMAT,
+            f"{suffix} is not a valid Office Open XML ZIP container",
+            context={
+                "path_resolution": path_resolution(path),
+                "supported_container": "zip-openxml",
+            },
+        )
+
+
+def _read_signature(path: Path, size: int = 8) -> bytes:
+    try:
+        with path.open("rb") as file:
+            return file.read(size)
+    except OSError as exc:
+        raise ValidationError(ErrorCode.PERMISSION_DENIED, f"File is not readable: {path}") from exc

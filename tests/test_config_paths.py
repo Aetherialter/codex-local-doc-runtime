@@ -97,6 +97,28 @@ def test_unsupported_format_is_classified(tmp_path: Path):
     assert exc_info.value.error_code == ErrorCode.UNSUPPORTED_FORMAT
 
 
+def test_legacy_office_format_is_classified(tmp_path: Path):
+    path = tmp_path / "file.doc"
+    path.write_text("legacy", encoding="utf-8")
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_input_path(path, {".docx"})
+
+    assert exc_info.value.error_code == ErrorCode.UNSUPPORTED_LEGACY_FORMAT
+    assert exc_info.value.context["suggested_conversion"] == ".docx"
+
+
+def test_ole_office_container_is_classified_as_encrypted_or_legacy(tmp_path: Path):
+    path = tmp_path / "encrypted.docx"
+    path.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1fake")
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_input_path(path, {".docx"})
+
+    assert exc_info.value.error_code == ErrorCode.ENCRYPTED_FILE_UNSUPPORTED
+    assert exc_info.value.context["container_signature"] == "ole-compound-file"
+
+
 def test_default_inspect_output_keeps_extension_to_avoid_collisions(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
 

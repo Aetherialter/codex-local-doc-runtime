@@ -67,3 +67,11 @@ uv run docrt doctor --agent --office-smoke
 Microsoft Word, Microsoft Excel, and Poppler are external runtime capabilities.
 The `doctor` command reports their availability so a missing desktop dependency
 is visible before conversion work starts.
+
+v1.0 keeps portability explicit rather than implicit:
+
+- Office COM conversion is Windows desktop only.
+- Non-Office DOCX/PDF/XLSX commands are best-effort outside Windows.
+- Legacy `.doc` / `.xls`, encrypted files, OCR, interactive Office dialogs, and
+  complex PDF original-content editing are reported as unsupported boundaries
+  instead of being handled through ad hoc fallbacks.

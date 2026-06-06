@@ -11,6 +11,29 @@ RECOVERY_ACTIONS: dict[str, list[str]] = {
         "Use a supported .docx, .pdf, or .xlsx file.",
         "Convert legacy .doc or .xls files before running docrt.",
     ],
+    ErrorCode.UNSUPPORTED_LEGACY_FORMAT.value: [
+        "Convert .doc to .docx or .xls to .xlsx before running docrt.",
+        "Use Microsoft Office or another trusted converter outside docrt.",
+    ],
+    ErrorCode.ENCRYPTED_FILE_UNSUPPORTED.value: [
+        "Create an unencrypted copy of the document before running docrt.",
+        "Do not pass passwords through logs, task manifests, or patch files.",
+    ],
+    ErrorCode.OCR_UNSUPPORTED.value: [
+        "Run an external OCR tool first, then pass the text-layer PDF to docrt.",
+        "Use inspect-pdf or read-pdf to confirm has_text_layer before text extraction.",
+    ],
+    ErrorCode.PDF_ORIGINAL_EDIT_UNSUPPORTED.value: [
+        "Use annotate-pdf for additive comments or marks.",
+        "Use a dedicated PDF editor for original-content editing.",
+    ],
+    ErrorCode.INTERACTIVE_OFFICE_DIALOG_UNSUPPORTED.value: [
+        (
+            "Open Word or Excel manually and clear first-run prompts, repair prompts, "
+            "or macro warnings."
+        ),
+        "Rerun uv run docrt doctor --agent --office-smoke after closing Office dialogs.",
+    ],
     ErrorCode.PATH_VALIDATION_FAILED.value: [
         "Shorten the file path or move the project closer to the drive root.",
         "Avoid generated paths longer than 260 characters on Windows.",

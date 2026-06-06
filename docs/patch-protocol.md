@@ -125,7 +125,7 @@ Supported XLSX operations:
 format when replacing values. The patch result marks these changes with
 `format_preservation=preserve_existing_cell_style`. New sheets use openpyxl's
 default sheet styling. Charts, pivot tables, macros, and external links are not
-treated as patch fidelity targets in this preview.
+treated as patch fidelity targets in v1.0.
 
 ## Result
 

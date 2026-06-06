@@ -34,4 +34,7 @@ Example:
 }
 ```
 
-PDF OCR and complex original-content editing are outside the current scope.
+PDF OCR and complex original-content editing are intentionally unsupported in
+v1.0. Use `inspect-pdf` or `read-pdf` to detect `needs_ocr=true`, run OCR with
+an external tool if needed, and use a dedicated PDF editor for original-content
+rewrites.

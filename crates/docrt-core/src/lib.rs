@@ -7,7 +7,7 @@ use std::fs::{canonicalize, metadata, File};
 use std::io::{BufReader, Read};
 use std::time::UNIX_EPOCH;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[pyfunction]
 fn version() -> &'static str {

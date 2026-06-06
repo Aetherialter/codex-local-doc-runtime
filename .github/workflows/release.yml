@@ -4,38 +4,70 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  github-release:
+  windows-release:
+    name: Windows release artifacts
     runs-on: windows-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Create GitHub release
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Set PyO3 Python
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          $Tag = $env:GITHUB_REF_NAME
-          $Version = $Tag -replace '^v', ''
-          $NotesFile = "docs\release-notes-$Version.md"
-          if (-not (Test-Path $NotesFile)) {
-            $NotesFile = "CHANGELOG.md"
-          }
+          $Python = (Resolve-Path .venv\Scripts\python.exe).Path
+          $PythonBase = (& $Python -c "import sys; print(sys.base_prefix)").Trim()
+          "PYO3_PYTHON=$Python" >> $env:GITHUB_ENV
+          $PythonBase >> $env:GITHUB_PATH
 
-          gh release view $Tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release edit $Tag `
-              --title "$Tag" `
-              --notes-file $NotesFile `
-              --prerelease
-          } else {
-            gh release create $Tag `
-              --title "$Tag" `
-              --notes-file $NotesFile `
-              --prerelease
-          }
+      - name: Quality gates
+        shell: pwsh
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          cargo fmt --check --manifest-path crates\docrt-core\Cargo.toml
+          cargo clippy --manifest-path crates\docrt-core\Cargo.toml -- -D warnings
+          cargo test --manifest-path crates\docrt-core\Cargo.toml
+          uv run pytest
+
+      - name: Build Python package
+        run: uv build
+
+      - name: Build Windows Rust extension wheel
+        run: uv run maturin build --release --manifest-path crates\docrt-core\Cargo.toml --out dist
+
+      - name: CLI smoke with Rust extension
+        shell: pwsh
+        run: |
+          uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml
+          uv run docrt version
+          uv run docrt doctor --agent
+          uv run docrt validate-task examples\tasks\xlsx-patch-verify.json
+          uv run docrt storage-report
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          make_latest: true

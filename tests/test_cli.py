@@ -12,6 +12,19 @@ from docrt.cli import app
 runner = CliRunner()
 
 
+def test_version_command_outputs_stable_version_json():
+    result = runner.invoke(app, ["version"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "version"
+    assert payload["data"]["version"] == "1.0.0"
+    assert payload["data"]["stability"] == "stable"
+    assert payload["data"]["result_schema_version"] == "1.0"
+    assert payload["data"]["core"]["backend"] in {"python", "rust"}
+
+
 def test_inspect_docx_output_option_writes_explicit_json(tmp_path: Path):
     input_path = tmp_path / "sample.docx"
     output_path = tmp_path / "custom" / "docx.json"

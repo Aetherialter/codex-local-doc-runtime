@@ -54,13 +54,23 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
         risk = str(recommendation.get("risk") or "medium")
         count = int(recommendation.get("count") or issue.get("count") or 0)
         status = str(issue.get("status") or "active")
+        category = str(recommendation.get("category") or "repair")
+        if category == "unsupported_boundary":
+            status = "unsupported_boundary"
         success_after_last_error = bool(issue.get("success_after_last_error"))
         items.append(
             {
                 "issue_id": issue_id,
-                "priority": _priority(severity, risk, count, success_after_last_error),
+                "priority": _priority(
+                    severity,
+                    risk,
+                    count,
+                    success_after_last_error,
+                    category,
+                ),
                 "severity": severity,
                 "risk": risk,
+                "category": category,
                 "status": status,
                 "count": count,
                 "last_error_at": issue.get("last_seen"),
@@ -77,6 +87,7 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
                     risk,
                     recommendation,
                     success_after_last_error,
+                    category,
                 ),
                 "next_step": _next_step(risk, recommendation, success_after_last_error),
             }
@@ -87,8 +98,14 @@ def _plan_items(analysis: dict[str, object]) -> list[dict[str, object]]:
     return items
 
 
-def _priority(severity: str, risk: str, count: int, success_after_last_error: bool = False) -> str:
-    if success_after_last_error:
+def _priority(
+    severity: str,
+    risk: str,
+    count: int,
+    success_after_last_error: bool = False,
+    category: str = "repair",
+) -> str:
+    if success_after_last_error or category == "unsupported_boundary":
         return "P4"
     severity_score = SEVERITY_RANK.get(severity, 0)
     risk_score = RISK_RANK.get(risk, 2)
@@ -105,8 +122,9 @@ def _auto_apply_allowed(
     risk: str,
     recommendation: dict[str, Any],
     success_after_last_error: bool = False,
+    category: str = "repair",
 ) -> bool:
-    if success_after_last_error:
+    if success_after_last_error or category == "unsupported_boundary":
         return False
     return risk == "low" and not bool(recommendation.get("requires_confirmation"))
 
@@ -118,6 +136,8 @@ def _next_step(
 ) -> str:
     if success_after_last_error:
         return "A later successful run was observed for this operation; keep monitoring logs."
+    if recommendation.get("category") == "unsupported_boundary":
+        return "This is a documented v1.0 unsupported boundary; adjust the input or workflow."
     if _auto_apply_allowed(risk, recommendation, success_after_last_error):
         return "Implement the low-risk fix in the next development pass, then run validation."
     return "Review the proposed fix before changing core behavior."

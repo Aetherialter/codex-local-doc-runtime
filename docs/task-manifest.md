@@ -21,9 +21,9 @@ created, how relative paths resolve from the current working directory, and
 whether every step supports dry-run planning.
 
 `supports_native_dry_run` means the underlying operation can validate and plan
-without writing output files. In this preview, only `patch-docx` and
-`patch-xlsx` are native dry-run operations. Other tasks use plan-only dry-run
-at the task-manifest layer.
+without writing output files. In v1.0, only `patch-docx` and `patch-xlsx` are
+native dry-run operations. Other tasks use plan-only dry-run at the
+task-manifest layer.
 
 ## Common Fields
 

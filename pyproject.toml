@@ -1,7 +1,7 @@
 [project]
 name = "codex-local-doc-runtime"
-version = "0.2.0rc2"
-description = "Local DOCX/PDF/XLSX processing runtime for Codex on Windows"
+version = "1.0.0"
+description = "Windows-first local DOCX/PDF/XLSX runtime for Codex and Agent workflows"
 readme = "README.md"
 authors = [
     { name = "Aetherialter", email = "Aetherialter@outlook.com" }
@@ -11,7 +11,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12"
 keywords = ["codex", "docx", "pdf", "xlsx", "office", "windows", "cli"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: Developers",
     "Operating System :: Microsoft :: Windows",

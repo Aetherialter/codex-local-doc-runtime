@@ -422,3 +422,48 @@ def test_repair_plan_demotes_recovered_issues(tmp_path: Path, monkeypatch) -> No
     assert result["items"][1]["status"] == "observed_recovered"
     assert result["items"][1]["auto_apply_allowed"] is False
     assert "successful run" in str(result["items"][1]["next_step"])
+
+
+def test_repair_plan_treats_unsupported_boundaries_as_monitoring(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work", state_dir="state")
+    error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    error_log.parent.mkdir(parents=True)
+    error_log.write_text(
+        "\n".join(
+            json.dumps(event)
+            for event in [
+                {
+                    "timestamp": "2026-06-06T00:00:00.000Z",
+                    "operation": "read-docx",
+                    "module": "docrt.paths",
+                    "error_code": "UNSUPPORTED_LEGACY_FORMAT",
+                    "exception_type": "ValidationError",
+                    "message": "legacy format",
+                },
+                {
+                    "timestamp": "2026-06-06T00:01:00.000Z",
+                    "operation": "read-docx",
+                    "module": "docrt.paths",
+                    "error_code": "ENCRYPTED_FILE_UNSUPPORTED",
+                    "exception_type": "ValidationError",
+                    "message": "encrypted file",
+                },
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = repair_plan(config, days=30)
+
+    assert result["item_count"] == 2
+    assert {item["priority"] for item in result["items"]} == {"P4"}
+    assert {item["category"] for item in result["items"]} == {"unsupported_boundary"}
+    assert {item["status"] for item in result["items"]} == {"unsupported_boundary"}
+    assert result["summary"]["auto_apply_allowed"] == 0
+    assert all(
+        "documented v1.0 unsupported boundary" in str(item["next_step"]) for item in result["items"]
+    )

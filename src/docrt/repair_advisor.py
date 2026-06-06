@@ -3,6 +3,58 @@ from __future__ import annotations
 from typing import Any
 
 REPAIR_RULES: dict[str, dict[str, object]] = {
+    "UNSUPPORTED_LEGACY_FORMAT": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": "The input is a legacy Office format outside the v1.0 support boundary.",
+        "summary": "Convert .doc to .docx or .xls to .xlsx before running docrt.",
+        "files": ["docs/v1-support-boundaries.md", "README.md"],
+        "validation": ["uv run pytest tests\\test_config_paths.py", "uv run ruff check ."],
+    },
+    "ENCRYPTED_FILE_UNSUPPORTED": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": (
+            "The input is encrypted or password-protected, which v1.0 does not process."
+        ),
+        "summary": "Create an unencrypted copy before running docrt; never put passwords in logs.",
+        "files": ["docs/v1-support-boundaries.md", "README.md"],
+        "validation": [
+            "uv run pytest tests\\test_config_paths.py tests\\test_document_ops.py",
+            "uv run ruff check .",
+        ],
+    },
+    "OCR_UNSUPPORTED": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": "The PDF needs OCR, but OCR is outside the v1.0 support boundary.",
+        "summary": "Run OCR with an external tool before passing the PDF to docrt.",
+        "files": ["docs/v1-support-boundaries.md", "docs/pdf-annotation.md"],
+        "validation": ["uv run pytest tests\\test_document_ops.py", "uv run ruff check ."],
+    },
+    "PDF_ORIGINAL_EDIT_UNSUPPORTED": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": (
+            "Complex PDF original-content editing is outside the v1.0 support boundary."
+        ),
+        "summary": "Use annotate-pdf for additive marks or a dedicated PDF editor for rewrites.",
+        "files": ["docs/v1-support-boundaries.md", "docs/pdf-annotation.md"],
+        "validation": ["uv run ruff check ."],
+    },
+    "INTERACTIVE_OFFICE_DIALOG_UNSUPPORTED": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": "Office automation was blocked by an interactive desktop dialog.",
+        "summary": "Clear the Office dialog manually, then rerun doctor --agent --office-smoke.",
+        "files": ["docs/v1-support-boundaries.md", "docs/troubleshooting.md"],
+        "validation": ["uv run ruff check ."],
+    },
     "FILE_NOT_FOUND": {
         "severity": "medium",
         "risk": "low",
@@ -124,6 +176,7 @@ def recommendations_for_issue(issue: dict[str, Any]) -> list[dict[str, object]]:
             "issue_id": issue.get("issue_id"),
             "severity": severity,
             "risk": rule["risk"],
+            "category": rule.get("category", "repair"),
             "count": count,
             "affected_operations": operations
             if isinstance(operations, list)

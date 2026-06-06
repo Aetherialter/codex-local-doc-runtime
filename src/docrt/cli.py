@@ -50,6 +50,7 @@ from docrt.schema_ops import validate_patch, validate_result, validate_task
 from docrt.storage_ops import clean, storage_report
 from docrt.task_ops import explain_task_manifest, run_task_manifest
 from docrt.verify_ops import compare_docx, compare_xlsx, verify_docx, verify_xlsx
+from docrt.version_info import version_report
 from docrt.xlsx_ops import inspect_xlsx
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -63,6 +64,22 @@ def _config(poppler_path: str | None, timeout: int | None, force_kill_office: bo
 
 def _emit(result) -> None:
     emit_result(result)
+
+
+@app.command()
+def version(
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "version",
+        lambda _run_id, _cfg, _logger: version_report(),
+        config=config,
+        backend="version",
+    )
+    _emit(result)
 
 
 @app.command()

@@ -6,6 +6,7 @@ from typing import Any
 from docrt.docx_styles import is_heading_style, paragraph_style_name
 from docrt.paths import ensure_unlocked_for_read, validate_input_path
 from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
+from docrt.pdf_safety import ensure_pdf_not_encrypted, pdf_text_layer_warnings
 
 
 def read_docx(path: str | Path) -> dict[str, object]:
@@ -84,6 +85,7 @@ def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]
 
     document = fitz.open(str(input_path))
     try:
+        ensure_pdf_not_encrypted(document)
         content_blocks: list[dict[str, object]] = []
         page_summaries: list[dict[str, Any]] = []
         total_text_chars = 0
@@ -113,7 +115,7 @@ def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]
                     },
                 }
             )
-        warnings = [] if total_text_chars else ["PDF has no text layer; OCR is not supported."]
+        warnings = pdf_text_layer_warnings(total_text_chars)
         return {
             "document_type": "pdf",
             "path": str(input_path),
@@ -124,6 +126,12 @@ def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]
                 ),
                 "pdf_metadata": dict(document.metadata or {}),
                 "has_text_layer": total_text_chars > 0,
+                "needs_ocr": total_text_chars == 0,
+                "ocr_supported": False,
+                "encryption": {
+                    "is_encrypted": bool(getattr(document, "is_encrypted", False)),
+                    "needs_pass": bool(getattr(document, "needs_pass", False)),
+                },
                 "pages": page_summaries,
             },
             "content_blocks": content_blocks,

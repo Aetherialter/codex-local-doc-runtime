@@ -54,8 +54,10 @@ def _commands() -> dict[str, list[str] | str]:
             f"git clone {GITHUB_REPOSITORY}",
             r"Set-Location D:\project\python\codex-local-doc-runtime",
             "uv sync --dev",
+            "uv run docrt version",
             "uv run docrt doctor --agent --office-smoke",
         ],
+        "version": "uv run docrt version",
         "doctor": "uv run docrt doctor --agent --office-smoke",
         "read": [
             "uv run docrt fingerprint <path>",
@@ -120,6 +122,7 @@ Default runtime path:
 
 ```powershell
 Set-Location {DEFAULT_RUNTIME_PATH}
+uv run docrt version
 uv run docrt doctor --agent --office-smoke
 ```
 
@@ -130,6 +133,7 @@ Set-Location D:\\project\\python
 git clone {GITHUB_REPOSITORY}
 Set-Location {DEFAULT_RUNTIME_PATH}
 uv sync --dev
+uv run docrt version
 uv run docrt doctor --agent --office-smoke
 ```
 
