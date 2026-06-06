@@ -7,7 +7,7 @@ REPAIR_RULES: dict[str, dict[str, object]] = {
         "severity": "low",
         "risk": "low",
         "category": "unsupported_boundary",
-        "likely_cause": "The input is a legacy Office format outside the v1.0 support boundary.",
+        "likely_cause": "The input is a legacy Office format outside the v1.1 support boundary.",
         "summary": "Convert .doc to .docx or .xls to .xlsx before running docrt.",
         "files": ["docs/v1-support-boundaries.md", "README.md"],
         "validation": ["uv run pytest tests\\test_config_paths.py", "uv run ruff check ."],
@@ -17,7 +17,7 @@ REPAIR_RULES: dict[str, dict[str, object]] = {
         "risk": "low",
         "category": "unsupported_boundary",
         "likely_cause": (
-            "The input is encrypted or password-protected, which v1.0 does not process."
+            "The input is encrypted or password-protected, which v1.1 does not process."
         ),
         "summary": "Create an unencrypted copy before running docrt; never put passwords in logs.",
         "files": ["docs/v1-support-boundaries.md", "README.md"],
@@ -26,11 +26,58 @@ REPAIR_RULES: dict[str, dict[str, object]] = {
             "uv run ruff check .",
         ],
     },
+    "CORRUPT_DOCUMENT": {
+        "severity": "low",
+        "risk": "low",
+        "category": "unsupported_boundary",
+        "likely_cause": "The input appears damaged or unreadable by the selected parser.",
+        "summary": "Open the document in its native application and save a repaired copy.",
+        "files": ["docs/v1-support-boundaries.md", "docs/troubleshooting.md"],
+        "validation": ["uv run pytest tests\\test_config_paths.py", "uv run ruff check ."],
+    },
+    "UV_UNAVAILABLE": {
+        "severity": "high",
+        "risk": "low",
+        "category": "runtime_preflight",
+        "likely_cause": "uv is missing from PATH and automatic bootstrap was disabled.",
+        "summary": "Install uv or run docrt through a bootstrap-capable entrypoint.",
+        "files": ["src/docrt/runtime_env.py", "docs/troubleshooting.md", "README.md"],
+        "validation": ["uv run pytest tests\\test_runtime_env.py", "uv run ruff check ."],
+    },
+    "UV_BOOTSTRAP_FAILED": {
+        "severity": "high",
+        "risk": "medium",
+        "category": "runtime_preflight",
+        "likely_cause": "uv is missing and winget installation failed or is unavailable.",
+        "summary": "Install uv with winget, then rerun doctor --agent --office-smoke.",
+        "files": ["src/docrt/runtime_env.py", "docs/troubleshooting.md", "README.md"],
+        "validation": ["uv run pytest tests\\test_runtime_env.py", "uv run ruff check ."],
+    },
+    "OFFICE_COM_REQUIRED": {
+        "severity": "high",
+        "risk": "low",
+        "category": "runtime_preflight",
+        "likely_cause": "The mainline runtime requires both Microsoft Word COM and Excel COM.",
+        "summary": (
+            "Install desktop Microsoft Word and Excel or run on a configured Windows machine."
+        ),
+        "files": [
+            "src/docrt/runtime_env.py",
+            "src/docrt/doctor.py",
+            "docs/v1-support-boundaries.md",
+            "docs/troubleshooting.md",
+        ],
+        "validation": [
+            "uv run pytest tests\\test_runtime_env.py tests\\test_doctor.py",
+            "uv run docrt doctor --agent --office-smoke",
+            "uv run ruff check .",
+        ],
+    },
     "OCR_UNSUPPORTED": {
         "severity": "low",
         "risk": "low",
         "category": "unsupported_boundary",
-        "likely_cause": "The PDF needs OCR, but OCR is outside the v1.0 support boundary.",
+        "likely_cause": "The PDF needs OCR, but OCR is outside the v1.1 support boundary.",
         "summary": "Run OCR with an external tool before passing the PDF to docrt.",
         "files": ["docs/v1-support-boundaries.md", "docs/pdf-annotation.md"],
         "validation": ["uv run pytest tests\\test_document_ops.py", "uv run ruff check ."],
@@ -40,7 +87,7 @@ REPAIR_RULES: dict[str, dict[str, object]] = {
         "risk": "low",
         "category": "unsupported_boundary",
         "likely_cause": (
-            "Complex PDF original-content editing is outside the v1.0 support boundary."
+            "Complex PDF original-content editing is outside the v1.1 support boundary."
         ),
         "summary": "Use annotate-pdf for additive marks or a dedicated PDF editor for rewrites.",
         "files": ["docs/v1-support-boundaries.md", "docs/pdf-annotation.md"],

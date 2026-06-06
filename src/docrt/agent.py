@@ -17,12 +17,34 @@ def agent_config(config: Config) -> dict[str, object]:
             "default_path": str(DEFAULT_RUNTIME_PATH),
             "repository": GITHUB_REPOSITORY,
             "run_from_project_root": True,
+            "primary_entrypoint": "uv run docrt",
+            "entrypoint_note": "main branch requires uv-managed source toolchain execution.",
+        },
+        "mainline_policy": {
+            "distribution": "windows_local_office_runtime_toolchain",
+            "entrypoint": "uv run docrt",
+            "auto_installs_uv": True,
+            "requires_local_office": True,
+            "default_engine": "office_required_native_processing",
+            "office_engine": "required_local_office_runtime",
+            "missing_office_behavior": "fail_fast_structured_error",
+            "rust": "optional_acceleration_with_python_fallback",
+            "standalone_exe_in_main": False,
         },
         "environment": {
-            "required": ["Windows 10/11", "PowerShell", "Git", "uv"],
+            "runtime_required": [
+                "Windows 10/11",
+                "PowerShell",
+                "uv",
+                "Microsoft Word desktop COM",
+                "Microsoft Excel desktop COM",
+                "declared pyproject dependencies",
+            ],
+            "auto_bootstrap": [
+                r".\scripts\bootstrap-uv.ps1",
+                "uv via winget when missing",
+            ],
             "optional": [
-                "Microsoft Word for DOCX to PDF and DOCX COM smoke checks",
-                "Microsoft Excel for XLSX to PDF and XLSX COM smoke checks",
                 "Poppler for additional PDF rendering diagnostics",
                 "Rust toolchain for optional docrt-core acceleration",
             ],
@@ -33,6 +55,13 @@ def agent_config(config: Config) -> dict[str, object]:
             "work": str(config.work_path),
             "diagnostics": str(config.diagnostics_path),
             "cache": str(config.work_path / "cache"),
+        },
+        "execution_branches": {
+            "mainline_source_toolchain": {
+                "entrypoint": "uv run docrt",
+                "requires": ["declared Python dependencies"],
+                "standalone_executable": False,
+            },
         },
         "commands": commands,
         "unsupported": [
@@ -53,6 +82,7 @@ def _commands() -> dict[str, list[str] | str]:
             r"Set-Location D:\project\python",
             f"git clone {GITHUB_REPOSITORY}",
             r"Set-Location D:\project\python\codex-local-doc-runtime",
+            r".\scripts\bootstrap-uv.ps1",
             "uv sync --dev",
             "uv run docrt version",
             "uv run docrt doctor --agent --office-smoke",
@@ -113,7 +143,7 @@ def _agents_md_fragment(commands: dict[str, list[str] | str]) -> str:
     storage = "\n".join(str(command) for command in commands["storage"])
     maintenance = "\n".join(str(command) for command in commands["maintenance"])
     task = "\n".join(str(command) for command in commands["task"])
-    return f"""# AGENTS.md Local Document Runtime Fragment
+    return rf"""# AGENTS.md Local Document Runtime Fragment
 
 When working with local `.docx`, `.pdf`, or `.xlsx` files on Windows, prefer
 `docrt` from `codex-local-doc-runtime` over ad hoc scripts.
@@ -126,12 +156,21 @@ uv run docrt version
 uv run docrt doctor --agent --office-smoke
 ```
 
+`uv run docrt ...` is the required source checkout entrypoint for this local
+runtime. If uv is missing, run `.\scripts\bootstrap-uv.ps1`; docrt may then
+bootstrap uv through winget. This mainline
+runtime requires local Microsoft Word and Microsoft Excel COM; if Office is
+missing, document operations fail fast with structured errors. Do not route this
+mainline workflow through standalone exe, portable exe, installer, or GUI wrapper
+distribution.
+
 If the runtime path does not exist, restore it with:
 
 ```powershell
-Set-Location D:\\project\\python
+Set-Location D:\project\python
 git clone {GITHUB_REPOSITORY}
 Set-Location {DEFAULT_RUNTIME_PATH}
+.\scripts\bootstrap-uv.ps1
 uv sync --dev
 uv run docrt version
 uv run docrt doctor --agent --office-smoke
@@ -162,8 +201,9 @@ Before a development pass, review recent runtime feedback with:
 ```
 
 Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office
-dialogs, or complex PDF original-content editing are supported. Office COM
-conversion requires Microsoft Word or Microsoft Excel on the local machine.
+dialogs, or complex PDF original-content editing are supported. Microsoft Word
+and Microsoft Excel are required for the mainline document runtime; there is no
+no-Office fallback in main yet.
 Rust acceleration is optional and falls back to Python when the native extension
 is unavailable.
 """

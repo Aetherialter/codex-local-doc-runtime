@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "docrt-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "pyo3",
  "serde_json",

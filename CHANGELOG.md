@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format follows Keep a Changelog style, and this project uses semantic
 versioning.
 
+## [1.1.0] - 2026-06-06
+
+### Added
+
+- Mainline `uv` + local Microsoft Office runtime requirements for Windows
+  document processing.
+- Public `docrt.api` facade for inspect, read, render, search, patch, verify,
+  compare, and PDF export operations.
+- Structured runtime errors for missing `uv`, failed `uv` bootstrap, missing
+  Office COM, unsupported inputs, and corrupt files.
+- Runtime preflight tests that prove missing Office fails fast with structured
+  diagnostics.
+- `bootstrap-uv` command for environments where `docrt` is already executable
+  but `uv` is not on PATH.
+
+### Changed
+
+- Reposition `main` as a Windows local runtime toolchain rather than an
+  end-user executable distribution or cross-platform headless SDK.
+- Route CLI and task manifest execution through the public API facade and direct
+  operation modules.
+- Treat Microsoft Word and Excel COM as required runtime dependencies for
+  `.docx`, `.pdf`, and `.xlsx` processing commands.
+- Clarify that `uv run docrt ...` is the required mainline entrypoint and that
+  missing `uv` may be configured through `winget`.
+- Clarify that Rust is an optional service layer below `docrt.core_bridge` with
+  Python fallback.
+
+### Known Limitations
+
+- The current mainline has no no-Office fallback. Missing desktop Word or Excel
+  returns structured errors instead of attempting alternate engines.
+- OCR, `.doc`, `.xls`, encrypted files, interactive Office dialogs, and complex
+  PDF original-content editing remain unsupported boundaries.
+- End-user exe, GUI/TUI, and PyInstaller/Nuitka packaging remain out of scope
+  for `main`.
+
 ## [1.0.0] - 2026-06-06
 
 ### Added

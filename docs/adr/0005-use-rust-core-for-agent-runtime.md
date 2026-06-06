@@ -9,23 +9,26 @@ checks, JSON preflight validation, and batch planning.
 
 ## Decision
 
-Keep Python as the orchestration layer for Office COM, PyMuPDF, python-docx, and
-openpyxl. Introduce a small Rust extension crate at `crates/docrt-core` using
+Keep Python as the orchestration layer for runtime preflight, direct document
+operation dispatch, Office COM, PyMuPDF, python-docx, and openpyxl. Keep the
+Rust extension crate at `crates/docrt-core` as an optional service layer using
 PyO3 and maturin. Python calls the Rust extension through `docrt.core_bridge`
 and falls back to pure Python when the native module is not built.
 
 ## Reasons
 
 Rust is a good fit for deterministic file hashing, batch file scanning, simple
-text search over existing indexes, path normalization, and manifest validation
-primitives. Python remains the better integration layer for Windows Office
-automation and the existing document libraries.
+text search over existing indexes, path normalization, manifest validation
+primitives, and future OOXML container preflight. Python remains the better
+integration layer for runtime policy, structured errors, Windows Office
+automation, and the existing document libraries.
 
 ## Pros
 
 - Keeps the public CLI stable while allowing native acceleration.
 - Makes path and cache operations easier to harden over time.
 - Allows source checkout usage before the Rust extension is compiled.
+- Preserves the same Python API behavior across Rust and Python fallback modes.
 
 ## Cons
 
@@ -43,6 +46,8 @@ automation and the existing document libraries.
 
 ## Impact
 
-The repository now has a hybrid structure. Runtime behavior still starts from
-`uv run docrt ...`; native acceleration is enabled with `uv run maturin develop
---manifest-path crates\docrt-core\Cargo.toml`.
+The repository now has a hybrid structure. Recommended source checkout
+execution still uses `uv run docrt ...`; native acceleration is enabled with
+`uv run maturin develop --manifest-path crates\docrt-core\Cargo.toml`. The Rust
+extension must stay below `docrt.core_bridge` and must not become a second
+workflow dispatcher.

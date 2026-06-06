@@ -25,6 +25,7 @@ from docrt.paths import (
     validate_input_path,
     validate_output_path,
 )
+from docrt.runtime_env import assert_mainline_runtime_for_path, confirmed_mainline_runtime
 
 MAX_WORKER_TEXT_CHARS = 4000
 
@@ -32,23 +33,31 @@ MAX_WORKER_TEXT_CHARS = 4000
 def docx_to_pdf(
     input_path: str | Path, output_path: str | Path | None, config: Config, run_id: str
 ) -> dict[str, object]:
-    _ensure_office_available("word")
     source = validate_input_path(input_path, {".docx"})
-    ensure_unlocked_for_read(source)
-    target = validate_output_path(output_path or default_pdf_output(source, config.outputs_path))
-    ensure_output_not_locked(target)
-    return _run_worker("word", source, target, config, run_id, config.word_timeout_seconds)
+    assert_mainline_runtime_for_path(source)
+    with confirmed_mainline_runtime():
+        _ensure_office_available("word")
+        ensure_unlocked_for_read(source)
+        target = validate_output_path(
+            output_path or default_pdf_output(source, config.outputs_path)
+        )
+        ensure_output_not_locked(target)
+        return _run_worker("word", source, target, config, run_id, config.word_timeout_seconds)
 
 
 def xlsx_to_pdf(
     input_path: str | Path, output_path: str | Path | None, config: Config, run_id: str
 ) -> dict[str, object]:
-    _ensure_office_available("excel")
     source = validate_input_path(input_path, {".xlsx"})
-    ensure_unlocked_for_read(source)
-    target = validate_output_path(output_path or default_pdf_output(source, config.outputs_path))
-    ensure_output_not_locked(target)
-    return _run_worker("excel", source, target, config, run_id, config.excel_timeout_seconds)
+    assert_mainline_runtime_for_path(source)
+    with confirmed_mainline_runtime():
+        _ensure_office_available("excel")
+        ensure_unlocked_for_read(source)
+        target = validate_output_path(
+            output_path or default_pdf_output(source, config.outputs_path)
+        )
+        ensure_output_not_locked(target)
+        return _run_worker("excel", source, target, config, run_id, config.excel_timeout_seconds)
 
 
 def _run_worker(

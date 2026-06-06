@@ -14,38 +14,44 @@ from docrt.paths import SUPPORTED_EXTENSIONS, validate_input_path
 from docrt.pdf_ops import inspect_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.recovery import recovery_actions
+from docrt.runtime_env import assert_mainline_runtime_for_path, confirmed_mainline_runtime
 from docrt.xlsx_ops import inspect_xlsx
 
 
 def fingerprint_file(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, SUPPORTED_EXTENSIONS)
+    assert_mainline_runtime_for_path(input_path)
     return fingerprint(input_path)
 
 
 def batch_fingerprint(paths: list[str | Path]) -> dict[str, object]:
     input_paths = [validate_input_path(path, SUPPORTED_EXTENSIONS) for path in paths]
+    for input_path in input_paths:
+        assert_mainline_runtime_for_path(input_path)
     return fingerprint_many(input_paths)
 
 
 def cache_read(path: str | Path, config: Config) -> dict[str, object]:
     input_path = validate_input_path(path, SUPPORTED_EXTENSIONS)
-    info = fingerprint(input_path)
-    cache_path = config.work_path / "cache" / f"{info['sha256']}.read.json"
-    if cache_path.exists():
+    assert_mainline_runtime_for_path(input_path)
+    with confirmed_mainline_runtime():
+        info = fingerprint(input_path)
+        cache_path = config.work_path / "cache" / f"{info['sha256']}.read.json"
+        if cache_path.exists():
+            return {
+                "cache_hit": True,
+                "cache_path": str(cache_path),
+                "fingerprint": info,
+                "data": json.loads(cache_path.read_text(encoding="utf-8")),
+            }
+        data = _reader_for(input_path)(input_path)
+        dump_file(cache_path, data)
         return {
-            "cache_hit": True,
+            "cache_hit": False,
             "cache_path": str(cache_path),
             "fingerprint": info,
-            "data": json.loads(cache_path.read_text(encoding="utf-8")),
+            "data": data,
         }
-    data = _reader_for(input_path)(input_path)
-    dump_file(cache_path, data)
-    return {
-        "cache_hit": False,
-        "cache_path": str(cache_path),
-        "fingerprint": info,
-        "data": data,
-    }
 
 
 def batch_read(
@@ -53,12 +59,12 @@ def batch_read(
 ) -> dict[str, object]:
     return _batch_process(
         paths,
-        lambda path: cache_read(path, config) if use_cache else _reader_for(Path(path))(path),
+        lambda path: cache_read(path, config) if use_cache else _read_with_required_runtime(path),
     )
 
 
 def batch_inspect(paths: list[str | Path]) -> dict[str, object]:
-    return _batch_process(paths, lambda path: _inspector_for(Path(path))(path))
+    return _batch_process(paths, _inspect_with_required_runtime)
 
 
 def _batch_process(
@@ -132,6 +138,20 @@ def search(query: str, config: Config) -> dict[str, object]:
         "count": result["count"],
         "matches": result["matches"],
     }
+
+
+def _read_with_required_runtime(path: str | Path) -> dict[str, object]:
+    input_path = validate_input_path(path, SUPPORTED_EXTENSIONS)
+    assert_mainline_runtime_for_path(input_path)
+    with confirmed_mainline_runtime():
+        return _reader_for(input_path)(input_path)
+
+
+def _inspect_with_required_runtime(path: str | Path) -> dict[str, object]:
+    input_path = validate_input_path(path, SUPPORTED_EXTENSIONS)
+    assert_mainline_runtime_for_path(input_path)
+    with confirmed_mainline_runtime():
+        return _inspector_for(input_path)(input_path)
 
 
 def _reader_for(path: str | Path) -> Callable[[str | Path], dict[str, object]]:

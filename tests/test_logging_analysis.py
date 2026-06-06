@@ -465,5 +465,5 @@ def test_repair_plan_treats_unsupported_boundaries_as_monitoring(
     assert {item["status"] for item in result["items"]} == {"unsupported_boundary"}
     assert result["summary"]["auto_apply_allowed"] == 0
     assert all(
-        "documented v1.0 unsupported boundary" in str(item["next_step"]) for item in result["items"]
+        "documented v1.1 unsupported boundary" in str(item["next_step"]) for item in result["items"]
     )

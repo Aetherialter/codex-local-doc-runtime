@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from docrt.paths import ensure_unlocked_for_read, validate_input_path
+from docrt.runtime_env import assert_mainline_runtime_for_path
 
 
 def inspect_xlsx(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, {".xlsx"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     try:
         import openpyxl

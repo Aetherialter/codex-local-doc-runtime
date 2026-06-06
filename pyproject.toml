@@ -1,7 +1,7 @@
 [project]
 name = "codex-local-doc-runtime"
-version = "1.0.0"
-description = "Windows-first local DOCX/PDF/XLSX runtime for Codex and Agent workflows"
+version = "1.1.0"
+description = "Windows uv + local Office DOCX/PDF/XLSX runtime toolchain for Agent workflows"
 readme = "README.md"
 authors = [
     { name = "Aetherialter", email = "Aetherialter@outlook.com" }
@@ -9,11 +9,11 @@ authors = [
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
-keywords = ["codex", "docx", "pdf", "xlsx", "office", "windows", "cli"]
+keywords = ["codex", "docx", "pdf", "xlsx", "office", "windows", "uv", "cli"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "Environment :: Win32 (MS Windows)",
     "Intended Audience :: Developers",
+    "Environment :: Win32 (MS Windows)",
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",

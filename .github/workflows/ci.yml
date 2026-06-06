@@ -9,7 +9,7 @@ on:
 
 jobs:
   windows:
-    name: Windows
+    name: Windows uv + Office runtime checks
     runs-on: windows-latest
 
     steps:

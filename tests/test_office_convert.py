@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from docx import Document
+from openpyxl import Workbook
 
 from docrt.config import Config
 from docrt.models import ErrorCode
@@ -78,7 +80,7 @@ def test_office_worker_timeout_carries_cleanup_context(tmp_path: Path, monkeypat
 
 def test_docx_to_pdf_preflights_word_com_before_worker(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / "input.docx"
-    source.write_text("x", encoding="utf-8")
+    Document().save(source)
     config = Config(outputs_dir=str(tmp_path / "outputs"), work_dir=str(tmp_path / "work"))
     monkeypatch.setattr("docrt.office_convert.check_word_com", lambda: False)
 
@@ -97,7 +99,7 @@ def test_docx_to_pdf_preflights_word_com_before_worker(tmp_path: Path, monkeypat
 
 def test_xlsx_to_pdf_preflights_excel_com_before_worker(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / "input.xlsx"
-    source.write_text("x", encoding="utf-8")
+    Workbook().save(source)
     config = Config(outputs_dir=str(tmp_path / "outputs"), work_dir=str(tmp_path / "work"))
     monkeypatch.setattr("docrt.office_convert.check_excel_com", lambda: False)
 

@@ -7,10 +7,12 @@ from docrt.docx_styles import is_heading_style, paragraph_style_name
 from docrt.paths import ensure_unlocked_for_read, validate_input_path
 from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
 from docrt.pdf_safety import ensure_pdf_not_encrypted, pdf_text_layer_warnings
+from docrt.runtime_env import assert_mainline_runtime_for_path
 
 
 def read_docx(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, {".docx"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     try:
         from docx import Document
@@ -77,6 +79,7 @@ def read_docx(path: str | Path) -> dict[str, object]:
 
 def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     try:
         import fitz
@@ -144,6 +147,7 @@ def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]
 
 def read_xlsx(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, {".xlsx"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     try:
         import openpyxl

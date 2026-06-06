@@ -69,7 +69,7 @@ def test_pdf_without_text_layer_reports_ocr_needed(tmp_path: Path):
     assert info["needs_ocr"] is True
     assert info["ocr_supported"] is False
     assert content["metadata"]["needs_ocr"] is True
-    assert "OCR is not supported in v1.0" in content["warnings"][0]
+    assert "OCR is not supported in v1.1" in content["warnings"][0]
 
 
 def test_encrypted_pdf_is_rejected(tmp_path: Path):

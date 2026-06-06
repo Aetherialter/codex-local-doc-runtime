@@ -1,13 +1,20 @@
 # codex-local-doc-runtime
 
-`docrt` 是一个面向 Windows + PowerShell + uv 的本地文档运行时，目标是让
-Codex 或其他 Agent 在处理本机 Word、PDF、Excel 文件时，优先走一套稳定、
-可诊断、可复现的命令链路，而不是临时脚本或不稳定的默认能力。
+`docrt` 是一个面向 Windows 本机 Agent 的 DOCX/PDF/XLSX 运行时工具链，目标是在
+处理本机 Word、PDF、Excel 文件时，强制走一条稳定、可诊断、可复现的链路：
+`uv run docrt ...` + 本地 Microsoft Word/Excel COM。
 
-当前版本定位为 **v1.0.0 stable**：适合个人长期使用、Agent 本地工具链集成和
-可迁移的开源分发。v1.0 的稳定承诺覆盖 CLI 命令名、JSON 结果基本字段、
-patch/task schema、错误码、日志字段和缓存清理规则。项目仍是 Windows-first
-本地运行时，不承诺作为跨平台服务器或企业生产服务。
+`main` 分支定位为固定本机运行时工具链：`uv` 是主入口，缺少 `uv` 时可以通过
+`winget` 自动配置；本地 Microsoft Office 是硬依赖，缺少 Word 或 Excel 时直接
+返回结构化异常。Rust 仅作为可选加速。单文件 exe、便携包或 GUI 封装不属于 main。
+详见
+[`docs/mainline-requirements.md`](docs/mainline-requirements.md)。
+
+当前版本定位为 **v1.1.0 stable**：适合个人长期使用、Agent 本地工具链集成和
+可迁移的开源分发。v1.1 的稳定承诺覆盖 CLI 命令名、Python API、JSON 结果
+基本字段、patch/task schema、错误码、日志字段、缓存清理规则和引擎调度边界。
+项目不是跨平台服务器框架，也不是终端用户 exe 应用；它是 Windows + uv + 本地
+Office 的固定运行时工具链。
 
 ## 能力范围
 
@@ -25,7 +32,7 @@ patch/task schema、错误码、日志字段和缓存清理规则。项目仍是
 - `job-start` 和 `job-status`：后台运行低风险维护任务
 - 可选 Rust core：hash、batch fingerprint、索引搜索、路径检查、JSON 预检、批量计划
 
-不支持，且 v1.0 会用结构化错误或显式字段表达：
+不支持，且 v1.1 会用结构化错误或显式字段表达：
 
 - OCR：图片型 PDF 会返回 `needs_ocr=true`，内置 OCR 不可用。
 - `.doc`：返回 `UNSUPPORTED_LEGACY_FORMAT`，需要先转换成 `.docx`。
@@ -36,44 +43,52 @@ patch/task schema、错误码、日志字段和缓存清理规则。项目仍是
 
 重要限制：
 
-- Word/Excel COM 能力依赖本机安装 Microsoft Word 和 Microsoft Excel 桌面版。
-- 没有安装 Word 时，`docx-to-pdf` 和 Word COM smoke 会返回 `WORD_COM_UNAVAILABLE`。
-- 没有安装 Excel 时，`xlsx-to-pdf` 和 Excel COM smoke 会返回 `EXCEL_COM_UNAVAILABLE`。
-- GitHub Actions 不假设存在桌面版 Office，因此 CI 不覆盖真实 Office COM 交互。
+- Word/Excel COM 是 main 主链路硬依赖，必须安装 Microsoft Word 和 Microsoft
+  Excel 桌面版。
+- 没有安装 Word 或 Excel 时，文档处理命令会返回结构化异常；当前不做 no-Office
+  fallback。
+- GitHub Actions 不假设存在桌面版 Office，因此 Office 成功链路需要本机或
+  self-hosted Windows runner 验证。
 - GitHub Release 会构建 Windows Rust extension wheel；从源码 clone 时如果未安装 wheel，
   仍会自动 fallback 到 Python core。
 - 已用 Windows 临时目录做过 clean clone 模拟演练；迁移到目标机器后仍建议重新执行
   `doctor --agent --office-smoke` 验证本机 Office COM 和 Poppler 状态。
 
-## v1.0 支持矩阵
+## v1.1 支持矩阵
 
-| 能力 | Windows + Office | Windows 无 Office | Linux/macOS 源码运行 | Docker/服务器 |
+| 能力 | Windows + uv + Office | Windows 无 Office | Linux/macOS 源码运行 | Docker/服务器 |
 | --- | --- | --- | --- | --- |
-| `doctor` / `agent-config` | 支持 | 支持 | 尽力支持 | 尽力支持 |
-| DOCX 读取/inspect | 支持 | 支持 | 尽力支持 | 尽力支持 |
-| DOCX patch/verify/compare | 支持 | 支持 | 尽力支持 | 尽力支持 |
+| `doctor` / `agent-config` | 支持 | 可诊断为未就绪 | 不作为主目标 | 不作为主目标 |
+| DOCX 读取/inspect | 支持 | 不支持 | 不支持 | 不支持 |
+| DOCX patch/verify/compare | 支持 | 不支持 | 不支持 | 不支持 |
 | DOCX 转 PDF | 支持 | 不支持 | 不支持 | 不支持 |
-| PDF 读取/search/render/annotate | 支持 | 支持 | 尽力支持 | 尽力支持 |
+| PDF 读取/search/render/annotate | 支持 | 不支持 | 不支持 | 不支持 |
 | 图片型 PDF OCR | 不支持 | 不支持 | 不支持 | 不支持 |
 | PDF 原文复杂编辑 | 不支持 | 不支持 | 不支持 | 不支持 |
-| XLSX 读取/inspect | 支持 | 支持 | 尽力支持 | 尽力支持 |
-| XLSX patch/verify/compare | 支持 | 支持 | 尽力支持 | 尽力支持 |
+| XLSX 读取/inspect | 支持 | 不支持 | 不支持 | 不支持 |
+| XLSX patch/verify/compare | 支持 | 不支持 | 不支持 | 不支持 |
 | XLSX 转 PDF | 支持 | 不支持 | 不支持 | 不支持 |
-| 后台维护、日志、repair-plan | 支持 | 支持 | 尽力支持 | 尽力支持 |
-| Rust 加速 | Release wheel 或本机构建 | Release wheel 或本机构建 | 源码构建 | 源码构建 |
+| 后台维护、日志、repair-plan | 支持 | 可用但文档处理未就绪 | 不作为主目标 | 不作为主目标 |
+| Rust 加速 | Release wheel 或本机构建 | 可构建但主链路未就绪 | 源码构建 | 源码构建 |
 
-`尽力支持` 表示该能力不依赖 Office COM，通常可以运行，但 v1.0 的主要验收环境仍是
-Windows + PowerShell + uv。跨平台完整支持会在后续版本以独立目标推进。
+main 的正式目标环境是 Windows + PowerShell + uv + Microsoft Word + Microsoft
+Excel。`.venv\Scripts\docrt.exe` 只是 uv 管理的虚拟环境内部启动器，不是 main 线
+交付物。
 
 ## 环境要求
 
-基础使用必须存在：
+本机 Agent 主链路必须存在：
 
-- Windows 10/11
-- PowerShell
-- Git
-- uv
+- Git，用于从仓库恢复源码运行时
+- uv，用于源码恢复、运行、开发验证和 CI；缺少时可由 docrt bootstrap/doctor 链路
+  通过 winget 自动配置
+- Microsoft Word 桌面版
+- Microsoft Excel 桌面版
+- Windows 10/11 + PowerShell
 - 可联网安装依赖
+
+main 分支不交付单文件 exe、便携 exe 或 GUI 包装器。`.venv\Scripts\docrt.exe`
+只属于 uv 管理的虚拟环境内部实现细节，不能脱离 `.venv` 和项目目录单独复制使用。
 
 Office/PDF 增强能力：
 
@@ -114,7 +129,31 @@ uv sync --dev
 uv run docrt doctor --agent --office-smoke
 ```
 
-如果只需要 Python fallback，不需要 Rust 加速，到这里即可使用。
+如果不需要 Rust 加速，到这里即可使用；Rust 缺失只影响加速，不放宽 `uv + Office`
+主链路要求。
+
+## 运行入口
+
+v1.1 的主线源码入口是 `uv run docrt ...`，因为它能保证源码恢复、依赖同步和开发验证
+可复现。Agent 内部可以调用这些命令，普通用户只应看到自然语言需求和结果文件：
+
+```powershell
+Set-Location D:\project\python\codex-local-doc-runtime
+uv run docrt version
+uv run docrt doctor --agent --office-smoke
+```
+
+如果当前 PowerShell 里完全没有 `uv`，先运行仓库级 bootstrap 脚本；它只安装/检查
+`uv`，不打包 exe，也不绕开本地 Office 要求：
+
+```powershell
+Set-Location D:\project\python\codex-local-doc-runtime
+.\scripts\bootstrap-uv.ps1
+```
+
+exe、便携包、安装器或 GUI 封装属于独立 branch 方案，不能反向改变 main 线定位。
+main 分支不把“全局 python 直接运行”作为用户路径；Python API 和 `.venv` 内启动器
+服务于开发、测试和上层封装，用户主路径仍固定为 `uv run docrt ...`。
 
 启用本机 Rust 加速：
 
@@ -427,8 +466,9 @@ uv run docrt clean --outputs --older-than 30 --yes
 
 ## Clean Clone 演练
 
-可以用临时目录模拟一台新机器的 clone 安装。v1.0 已用该链路验证过基础
-Python fallback 能力；目标机器仍需要按实际环境复查 Office COM。
+可以用临时目录模拟一台新机器的 clone 安装。v1.1 的文档处理链路要求
+`uv run docrt ...` 和本地 Word/Excel COM；这套演练必须把
+`doctor --agent --office-smoke` 作为验收的一部分。
 
 ```powershell
 $cloneRoot = Join-Path $env:TEMP "docrt-clean-clone"
@@ -438,18 +478,16 @@ Set-Location $cloneRoot
 git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
 Set-Location .\codex-local-doc-runtime
 uv sync --dev
-uv run docrt doctor --agent
+uv run docrt doctor --agent --office-smoke
 uv run docrt agent-config
 uv run docrt read-docx examples\fixtures\sample.docx
 uv run docrt search-pdf examples\fixtures\sample.pdf "sample"
 uv run docrt storage-report
 ```
 
-这套演练不会证明 Word/Excel COM 可用。Office COM 必须在目标机器上安装 Word/Excel 后执行：
-
-```powershell
-uv run docrt doctor --agent --office-smoke
-```
+如果这一步报告 `OFFICE_COM_REQUIRED`、`WORD_COM_UNAVAILABLE` 或
+`EXCEL_COM_UNAVAILABLE`，说明当前机器不满足 mainline 运行时要求；v1.1 当前不会尝试
+no-Office fallback。
 
 ## 开发验证
 
@@ -495,7 +533,11 @@ uv run docrt maintenance
 
 ## CI
 
-GitHub Actions 使用 `windows-latest`，当前覆盖：
+GitHub Actions 只验证源码质量、Rust 构建、Python fallback 单元测试和 Office 缺失时的
+结构化边界。GitHub hosted runner 通常没有桌面版 Word/Excel，因此不能代表完整 mainline
+文档处理验收。
+
+当前覆盖：
 
 - `uv sync --dev`
 - `uv run ruff format --check .`
@@ -506,16 +548,21 @@ GitHub Actions 使用 `windows-latest`，当前覆盖：
 - `cargo clippy -- -D warnings`
 - `cargo test`
 - `uv run maturin develop`
-- CLI smoke
+- mocked runtime preflight and missing-Office structured-error tests
 
-CI 不验证桌面版 Word/Excel COM。需要在本机运行 `doctor --agent --office-smoke`。
+完整验收必须在安装了 Word/Excel 的 Windows 本机运行：
+
+```powershell
+uv run docrt doctor --agent --office-smoke
+uv run pytest
+```
 
 ## Release
 
-v1.0 使用 git tag 触发发布：
+v1.1 使用 git tag 触发发布：
 
 ```powershell
-git tag v1.0.0
+git tag v1.1.0
 git push origin main --tags
 ```
 
@@ -549,13 +596,15 @@ codex-local-doc-runtime/
 
 ## 相关文档
 
+- `docs/quickstart.md`：clone 后 5 条命令完成最小可用验证
+- `docs/release-notes-1.1.0.md`：v1.1.0 发布说明、破坏性变化和验证记录
 - `docs/codex-integration.md`：Codex/Agent 集成规则
 - `docs/patch-protocol.md`：DOCX/XLSX patch 协议
 - `docs/task-manifest.md`：Agent task 协议
 - `docs/pdf-annotation.md`：PDF 追加批注协议
 - `docs/storage-management.md`：缓存和中间产物清理
 - `docs/troubleshooting.md`：错误恢复建议
-- `docs/v1-support-boundaries.md`：v1.0 支持矩阵、限制和正式边界
+- `docs/v1-support-boundaries.md`：v1.1 支持矩阵、限制和正式边界
 - `docs/adr/`：架构决策记录
 
 ## License

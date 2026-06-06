@@ -1,6 +1,7 @@
 import json
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import fitz
 import openpyxl
@@ -19,7 +20,7 @@ def test_version_command_outputs_stable_version_json():
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
     assert payload["operation"] == "version"
-    assert payload["data"]["version"] == "1.0.0"
+    assert payload["data"]["version"] == "1.1.0"
     assert payload["data"]["stability"] == "stable"
     assert payload["data"]["result_schema_version"] == "1.0"
     assert payload["data"]["core"]["backend"] in {"python", "rust"}
@@ -32,7 +33,8 @@ def test_inspect_docx_output_option_writes_explicit_json(tmp_path: Path):
     document.add_paragraph("hello docx")
     document.save(input_path)
 
-    result = runner.invoke(app, ["inspect-docx", str(input_path), "--output", str(output_path)])
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["inspect-docx", str(input_path), "--output", str(output_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -51,7 +53,8 @@ def test_inspect_pdf_output_option_writes_explicit_json(tmp_path: Path):
     document.save(input_path)
     document.close()
 
-    result = runner.invoke(app, ["inspect-pdf", str(input_path), "--output", str(output_path)])
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["inspect-pdf", str(input_path), "--output", str(output_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -70,10 +73,11 @@ def test_search_pdf_command_outputs_matches(tmp_path: Path):
     document.save(input_path)
     document.close()
 
-    result = runner.invoke(
-        app,
-        ["search-pdf", str(input_path), "searchable", "--output", str(output_path)],
-    )
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(
+            app,
+            ["search-pdf", str(input_path), "searchable", "--output", str(output_path)],
+        )
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -94,7 +98,8 @@ def test_search_pdf_command_supports_pages_option(tmp_path: Path):
     document.save(input_path)
     document.close()
 
-    result = runner.invoke(app, ["search-pdf", str(input_path), "target", "--pages", "2"])
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["search-pdf", str(input_path), "target", "--pages", "2"])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -112,7 +117,8 @@ def test_read_pdf_command_supports_pages_option(tmp_path: Path):
     document.save(input_path)
     document.close()
 
-    result = runner.invoke(app, ["read-pdf", str(input_path), "--pages", "2"])
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["read-pdf", str(input_path), "--pages", "2"])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -128,7 +134,8 @@ def test_inspect_xlsx_output_option_writes_explicit_json(tmp_path: Path):
     sheet["A1"] = "hello xlsx"
     workbook.save(input_path)
 
-    result = runner.invoke(app, ["inspect-xlsx", str(input_path), "--output", str(output_path)])
+    with patch("docrt.api.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["inspect-xlsx", str(input_path), "--output", str(output_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -177,7 +184,8 @@ def test_batch_fingerprint_command_outputs_json(tmp_path: Path):
     workbook = openpyxl.Workbook()
     workbook.save(xlsx_path)
 
-    result = runner.invoke(app, ["batch-fingerprint", str(docx_path), str(xlsx_path)])
+    with patch("docrt.cache_ops.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["batch-fingerprint", str(docx_path), str(xlsx_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -194,7 +202,8 @@ def test_batch_read_isolates_per_file_errors(tmp_path: Path):
     document.add_paragraph("hello docx")
     document.save(docx_path)
 
-    result = runner.invoke(app, ["batch-read", str(docx_path), str(missing_path)])
+    with patch("docrt.cache_ops.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["batch-read", str(docx_path), str(missing_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -213,7 +222,8 @@ def test_batch_inspect_uses_structural_inspect_results(tmp_path: Path):
     document.add_paragraph("hello docx")
     document.save(docx_path)
 
-    result = runner.invoke(app, ["batch-inspect", str(docx_path)])
+    with patch("docrt.cache_ops.assert_mainline_runtime_for_path", return_value={}):
+        result = runner.invoke(app, ["batch-inspect", str(docx_path)])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)

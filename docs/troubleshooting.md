@@ -11,6 +11,11 @@ before changing the command:
 
 ## Common Error Codes
 
+- `UV_UNAVAILABLE`: install `uv`, or invoke `docrt` through an entrypoint that
+  can run the bootstrap check.
+- `UV_BOOTSTRAP_FAILED`: `uv` is missing and automatic installation through
+  `winget` failed. Install with `winget install --id astral-sh.uv -e`, then
+  reopen PowerShell and rerun `uv run docrt doctor --agent --office-smoke`.
 - `FILE_NOT_FOUND`: check the path and current working directory.
 - `UNSUPPORTED_FORMAT`: use `.docx`, `.pdf`, or `.xlsx`.
 - `UNSUPPORTED_LEGACY_FORMAT`: convert `.doc` to `.docx` or `.xls` to `.xlsx`
@@ -21,15 +26,20 @@ before changing the command:
   `inspect-pdf` and `read-pdf` report `needs_ocr=true`.
 - `PDF_ORIGINAL_EDIT_UNSUPPORTED`: use `annotate-pdf` for additive comments or
   marks; use a dedicated PDF editor for original-content editing.
+- `CORRUPT_DOCUMENT`: open the file in its native application and save a
+  repaired copy before retrying.
 - `FILE_LOCKED`: close Word, Excel, PDF readers, sync tools, or antivirus scans
   holding the file.
 - `WORD_COM_UNAVAILABLE`: install Microsoft Word desktop edition and close
   interactive Word dialogs.
 - `EXCEL_COM_UNAVAILABLE`: install Microsoft Excel desktop edition and close
   interactive Excel dialogs.
-- `docx-to-pdf` and `xlsx-to-pdf` run a lightweight Office COM dispatch
-  preflight before opening the input document. If this fails, run
-  `uv run docrt doctor --agent --office-smoke` before retrying conversion.
+- `OFFICE_COM_REQUIRED`: the mainline runtime requires both desktop Microsoft
+  Word COM and Excel COM before processing `.docx`, `.pdf`, or `.xlsx` files.
+  There is no no-Office fallback in v1.1.
+- Document commands run an Office COM dispatch preflight before opening input
+  files. If this fails, run `uv run docrt doctor --agent --office-smoke` before
+  retrying.
 - `POPPLER_UNAVAILABLE`: install Poppler or pass `--poppler-path`.
 - `OFFICE_TIMEOUT`: retry with a larger `--timeout`.
 - `WORD_CONVERSION_FAILED` / `EXCEL_CONVERSION_FAILED`: open the diagnostic
@@ -102,5 +112,5 @@ stream and `outputs/diagnostics/*.job.diagnostic.json` files as foreground CLI
 failures. The next `analyze-logs` or `repair-plan` run can therefore include
 background failures in the repair backlog.
 
-Document editing and conversion remain foreground operations in v1.0 so
+Document editing and conversion remain foreground operations in v1.1 so
 users can see the exact JSON result before trusting the output file.

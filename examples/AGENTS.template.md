@@ -19,6 +19,7 @@ If the runtime path is missing after migrating to a new machine:
 Set-Location D:\project\python
 git clone https://github.com/Aetherialter/codex-local-doc-runtime.git
 Set-Location D:\project\python\codex-local-doc-runtime
+.\scripts\bootstrap-uv.ps1
 uv sync --dev
 uv run docrt doctor --agent --office-smoke
 ```
@@ -61,6 +62,8 @@ Rules:
 
 - Run `uv run docrt doctor --agent --office-smoke` before processing documents
   when the environment is unknown.
+- If `uv` is missing in a fresh PowerShell session, run
+  `.\scripts\bootstrap-uv.ps1` from the runtime repository first.
 - Inspect `error_code`, `error_message`, `log_path`, and
   `diagnostic_report_path` before changing code or retrying.
 - Run `uv run docrt repair-plan --days 30` before maintenance development
@@ -68,8 +71,8 @@ Rules:
 - Keep generated files under `outputs/`, `logs/`, or `work/`.
 - Do not assume OCR, `.doc`, `.xls`, encrypted Office files, interactive Office
   dialogs, or complex PDF original-content editing are supported by `docrt`.
-- Office COM conversion requires Microsoft Word or Microsoft Excel on the local
-  machine.
+- Mainline document processing requires Microsoft Word and Microsoft Excel COM
+  on the local machine; missing Office returns structured errors.
 - Rust acceleration is optional; without a local Rust/maturin build, `docrt`
   falls back to Python.
 ```

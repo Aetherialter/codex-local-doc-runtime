@@ -14,12 +14,14 @@ from docrt.paths import (
     validate_output_path,
 )
 from docrt.pdf_safety import ensure_pdf_not_encrypted
+from docrt.runtime_env import assert_mainline_runtime_for_path
 
 
 def annotate_pdf(
     input_path: str | Path, annotations_path: str | Path, output_path: str | Path
 ) -> dict[str, object]:
     source = validate_input_path(input_path, {".pdf"})
+    assert_mainline_runtime_for_path(source)
     annotations_file = validate_input_path(annotations_path, {".json"})
     target = validate_output_path(output_path)
     ensure_unlocked_for_read(source)

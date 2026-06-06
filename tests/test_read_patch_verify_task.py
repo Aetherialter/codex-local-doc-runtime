@@ -556,7 +556,7 @@ def test_explain_task_manifest_reports_agent_effects(tmp_path: Path):
         item["input"] == str(input_path) and item["exists"] is False
         for item in result["path_resolution"]
     )
-    assert result["requires_office_com"] is False
+    assert result["requires_office_com"] is True
     assert result["supports_dry_run"] is True
     assert result["supports_native_dry_run"] is False
     assert result["dry_run_mode"] == "execute"
@@ -577,3 +577,71 @@ def test_explain_task_manifest_reports_office_requirement(tmp_path: Path):
 
     assert result["requires_office_com"] is True
     assert result["generates"] == ["sample.pdf"]
+
+
+def test_explain_task_manifest_reports_read_requires_office(tmp_path: Path):
+    manifest_path = tmp_path / "task.json"
+    manifest_path.write_text(
+        json.dumps({"task": "read-pdf", "input": "sample.pdf"}),
+        encoding="utf-8",
+    )
+
+    result = explain_task_manifest(manifest_path)
+
+    assert result["requires_office_com"] is True
+    assert result["steps"][0]["requires_office_com"] is True
+
+
+def test_explain_task_manifest_reports_pdf_annotation_inputs(tmp_path: Path):
+    manifest_path = tmp_path / "task.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "task": "annotate-pdf",
+                "input": "sample.pdf",
+                "annotations": "annotations.json",
+                "output": "annotated.pdf",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = explain_task_manifest(manifest_path)
+
+    assert result["requires_office_com"] is True
+    assert result["reads"] == ["sample.pdf", "annotations.json"]
+    assert result["generates"] == ["annotated.pdf"]
+
+
+def test_run_task_manifest_can_annotate_pdf(tmp_path: Path):
+    input_path = tmp_path / "sample.pdf"
+    annotations_path = tmp_path / "annotations.json"
+    output_path = tmp_path / "annotated.pdf"
+    manifest_path = tmp_path / "task.json"
+    _make_pdf(input_path)
+    annotations_path.write_text(
+        json.dumps(
+            {
+                "annotations": [
+                    {"type": "text_note", "page_number": 1, "point": [72, 72], "text": "note"}
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "task": "annotate-pdf",
+                "input": str(input_path),
+                "annotations": str(annotations_path),
+                "output": str(output_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_task_manifest(manifest_path, Config.load(project_root=tmp_path), "run")
+
+    assert result["result"]["annotation_count"] == 1
+    assert output_path.exists()

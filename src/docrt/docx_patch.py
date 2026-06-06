@@ -22,6 +22,7 @@ from docrt.paths import (
     validate_output_path,
 )
 from docrt.read_ops import read_docx
+from docrt.runtime_env import assert_mainline_runtime_for_path, confirmed_mainline_runtime
 
 
 def patch_docx(
@@ -32,6 +33,7 @@ def patch_docx(
     dry_run: bool = False,
 ) -> dict[str, object]:
     source = validate_input_path(input_path, {".docx"})
+    assert_mainline_runtime_for_path(source)
     patch_file = validate_input_path(patch_path, {".json"})
     target = validate_output_path(output_path)
     ensure_distinct_output(source, target)
@@ -73,7 +75,8 @@ def patch_docx(
     if not dry_run:
         shutil.copyfile(source, target)
         document.save(str(target))
-        verification = read_docx(target)
+        with confirmed_mainline_runtime():
+            verification = read_docx(target)
 
     return {
         "input_path": str(source),

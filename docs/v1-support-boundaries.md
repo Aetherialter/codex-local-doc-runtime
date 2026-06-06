@@ -1,63 +1,83 @@
-# v1.0 Support Boundaries
+# v1.1 Support Boundaries
 
-`docrt` v1.0 is a Windows-first local document runtime for Agent workflows. It
-prioritizes explicit capability detection, structured errors, reproducible JSON
-results, and safe local artifact management over broad platform claims.
+`docrt` v1.1 is a Windows `uv` + local Microsoft Office runtime toolchain for
+Agent workflows. It prioritizes one fixed local execution path over broad
+headless portability.
 
 ## Supported Target
 
+Mainline document processing requires:
+
 - Windows 10/11.
 - PowerShell.
-- Git and uv.
-- Python 3.12 managed by uv.
-- Optional Microsoft Word desktop edition for DOCX to PDF conversion.
-- Optional Microsoft Excel desktop edition for XLSX to PDF conversion.
-- Optional Poppler for auxiliary PDF diagnostics.
-- Optional Rust core acceleration through a release wheel or local maturin
-  build.
+- Git for source checkout recovery.
+- `uv` as the required entrypoint.
+- Microsoft Word desktop COM.
+- Microsoft Excel desktop COM.
+- Python dependencies declared in `pyproject.toml`.
 
-## Portability
+Optional capabilities:
 
-Non-Office features are designed to avoid direct Windows APIs where practical,
-but v1.0 validation and release gates are Windows-first. Linux, macOS, and
-Docker usage is best-effort for non-Office commands and is not the primary
-support target.
+- Poppler for auxiliary PDF diagnostics.
+- Rust core acceleration through a release wheel or local maturin build.
 
-## Office COM Boundary
+## uv Boundary
 
-DOCX/XLSX to PDF conversion depends on desktop Microsoft Office COM automation.
-If Word or Excel is unavailable, commands fail with `WORD_COM_UNAVAILABLE` or
-`EXCEL_COM_UNAVAILABLE`. Interactive Office dialogs are not supported; first-run
-prompts, macro warnings, privacy prompts, or repair prompts must be cleared by a
-user before automation can be trusted.
+`uv` is required. If missing, docrt may attempt:
+
+```powershell
+winget install --id astral-sh.uv -e
+```
+
+If uv cannot be installed or does not appear on PATH, docrt reports
+`UV_UNAVAILABLE` or `UV_BOOTSTRAP_FAILED`.
+
+## Office Boundary
+
+Word and Excel COM are required for the mainline runtime. Missing Office reports
+structured errors and no no-Office fallback is implemented yet.
+
+Possible errors:
+
+- `OFFICE_COM_REQUIRED`
+- `WORD_COM_UNAVAILABLE`
+- `EXCEL_COM_UNAVAILABLE`
+
+Interactive Office dialogs are not supported; first-run prompts, macro warnings,
+privacy prompts, or repair prompts must be cleared by a user before automation
+can be trusted.
 
 ## File Format Boundary
 
-v1.0 supports `.docx`, `.pdf`, and `.xlsx`.
+v1.1 supports `.docx`, `.pdf`, and `.xlsx` only within the required Windows +
+uv + Office runtime.
 
 Unsupported formats are explicit:
 
 - `.doc` and `.xls`: `UNSUPPORTED_LEGACY_FORMAT`.
 - Password-protected or encrypted Office/PDF files:
   `ENCRYPTED_FILE_UNSUPPORTED`.
+- Damaged or unreadable supported containers: `CORRUPT_DOCUMENT` when the
+  failure can be classified as document corruption.
 - Unknown extensions or invalid containers: `UNSUPPORTED_FORMAT`.
 
 ## PDF Boundary
 
 PDF support covers reading, inspection, rendering, text search, and additive
-annotations. v1.0 does not support OCR or complex original-content editing.
+annotations. v1.1 does not support OCR or complex original-content editing.
 Image-only PDFs report `needs_ocr=true` and `ocr_supported=false`.
 
 ## Rust Boundary
 
-The Rust core is an optional acceleration layer. v1.0 release automation builds
-a Windows extension wheel, but source checkouts continue to work without Rust by
-falling back to Python.
+Rust is optional. Source checkouts continue to work without Rust by falling back
+to Python for accelerated primitives. Rust must not become a separate workflow
+dispatcher.
 
 ## CI Boundary
 
-GitHub-hosted CI covers Python, Rust, JSON schema, CLI smoke, and non-Office
-document workflows. Desktop Office COM flows require local validation through:
+GitHub-hosted CI validates Python, Rust, JSON schema, CLI smoke, and structural
+Office-boundary behavior on Windows. Real desktop Office success flows require
+local validation or a self-hosted Windows runner through:
 
 ```powershell
 uv run docrt doctor --agent --office-smoke

@@ -1,77 +1,80 @@
 # Architecture
 
-`codex-local-doc-runtime` provides a Windows-first command line runtime for
-local document processing. It is designed for automation agents that need stable
-machine-readable results instead of interactive desktop workflows.
+`codex-local-doc-runtime` is a Windows local document runtime toolchain for
+Agent workflows. The `main` branch intentionally standardizes one operational
+path: `uv run docrt ...` on a machine with local Microsoft Word and Excel COM.
+
+It is not a single-file end-user exe and it is not a cross-platform headless SDK.
 
 ## Goals
 
-- Provide a single `docrt` CLI for DOCX, PDF, and XLSX tasks.
-- Return a consistent JSON result shape from every command.
-- Keep all generated logs, diagnostics, and output files in predictable local
-  directories.
-- Isolate Microsoft Office COM conversion work in subprocesses so the parent
-  process can enforce timeouts and collect diagnostics.
-- Use `uv` so a cloned repository can recreate its Python environment without
-  relying on a global Python command.
+- Force a reproducible `uv`-managed source checkout entrypoint.
+- Bootstrap `uv` with `winget` when it is missing and bootstrap is possible.
+- Require local Microsoft Word and Microsoft Excel COM before document
+  operations.
+- Return structured errors when Office is missing; no no-Office fallback is
+  implemented in main yet.
+- Keep Rust acceleration optional below the Python orchestration layer.
+
+## Runtime Shape
+
+```text
+PowerShell / Agent
+  -> uv run docrt ...
+     -> uv preflight / bootstrap
+     -> Word + Excel COM preflight
+     -> Python API / CLI
+        -> direct DOCX / PDF / XLSX operation modules
+        -> Office COM conversion worker for DOCX/XLSX PDF export
+        -> Rust services           optional acceleration through docrt.core_bridge
+```
 
 ## Main Components
 
-- `docrt.cli`: Typer command definitions and option wiring.
+- `docrt.runtime_env`: uv and local Office runtime preflight.
+- `docrt.api`: public Python API facade. Document operations enter runtime
+  preflight before direct suffix-based dispatch.
+- `docrt.docx_ops`, `docrt.read_ops`, `docrt.patch_ops`, `docrt.verify_ops`:
+  DOCX/XLSX/PDF read, inspect, patch, verify, compare, search, render, and
+  annotation implementation after the required runtime is available.
+- `docrt.office_convert`: Office COM implementation for DOCX/XLSX PDF export.
+- `docrt.cli`: Typer command definitions.
+- `docrt.task_ops`: repeatable task manifest execution through the same API
+  facade.
 - `docrt.runner`: operation lifecycle, result creation, logging, and diagnostics.
-- `docrt.config`: configuration loading from CLI options, environment variables,
-  `docrt.config.json`, and defaults.
-- `docrt.docx_ops`: DOCX inspection through `python-docx`.
-- `docrt.pdf_ops`: PDF inspection and rendering through PyMuPDF.
-- `docrt.xlsx_ops`: XLSX inspection through `openpyxl` and `pandas`.
-- `docrt.docx_patch`: DOCX patch operations and best-effort run-aware format
-  preservation.
-- `docrt.xlsx_patch`: XLSX patch operations.
-- `docrt.patch_common`: shared patch loading, validation, summary, and helper
-  functions.
-- `docrt.patch_ops`: backward-compatible facade that exports `patch_docx` and
-  `patch_xlsx`.
-- `docrt.log_analysis`: reads persisted error JSONL logs and groups recurring
-  failures by error code, operation, module, and exception type.
-- `docrt.repair_plan`: converts log-analysis output into a ranked, persisted
-  next-fix plan without auto-applying risky changes.
-- `docrt.office_convert`: parent-side Office conversion orchestration.
-- `docrt.office_worker`: subprocess entrypoint for Word and Excel COM work.
-- `docrt.office_process`: Office process snapshots and cleanup diagnostics.
-- `docrt.poppler`: Poppler tool discovery for auxiliary PDF diagnostics.
-- `docrt.core_bridge`: Optional Rust acceleration for hashing, batch
-  fingerprints, path checks, JSON preflight validation, and indexed search.
-- `docrt.agent`: Agent-facing configuration fragments and bootstrap command
-  groups.
+- `docrt.core_bridge`: optional Rust extension bridge with Python fallback.
+- `docrt.agent`: Agent-facing configuration fragments and command groups.
 
-## Runtime Flow
+## Runtime Preflight
 
-1. The user runs a `docrt` command.
-2. CLI options are merged with environment variables, local config, and defaults.
-3. `run_operation` creates a run ID, starts structured logging, and invokes the
-   selected backend.
-4. The backend returns structured data or raises an exception.
-5. The runner emits the normalized JSON result, writes a JSONL log, and creates a
-   diagnostic report on failure.
+All public document operations for `.docx`, `.pdf`, and `.xlsx` require:
 
-## Portability Model
+- `uv` visible on PATH, or successful automatic bootstrap through `winget`.
+- Microsoft Word COM.
+- Microsoft Excel COM.
 
-The repository is intended to be cloned on a fresh Windows machine and prepared
-with:
+If Word or Excel is unavailable, document operations fail fast with structured
+errors such as `OFFICE_COM_REQUIRED`, `WORD_COM_UNAVAILABLE`, or
+`EXCEL_COM_UNAVAILABLE`.
 
-```powershell
-uv sync --dev
-uv run docrt doctor --agent --office-smoke
-```
+## Rust Boundary
 
-Microsoft Word, Microsoft Excel, and Poppler are external runtime capabilities.
-The `doctor` command reports their availability so a missing desktop dependency
-is visible before conversion work starts.
+Rust does not own document workflow orchestration. It is a service layer used by
+Python when available:
 
-v1.0 keeps portability explicit rather than implicit:
+- file fingerprinting
+- batch fingerprinting
+- path containment checks
+- JSON manifest preflight
+- batch planning
+- indexed text search
 
-- Office COM conversion is Windows desktop only.
-- Non-Office DOCX/PDF/XLSX commands are best-effort outside Windows.
-- Legacy `.doc` / `.xls`, encrypted files, OCR, interactive Office dialogs, and
-  complex PDF original-content editing are reported as unsupported boundaries
-  instead of being handled through ad hoc fallbacks.
+`docrt.core_bridge` imports `docrt_core` when the PyO3 extension is installed
+and falls back to Python implementations when it is not. Public behavior must
+remain available without Rust.
+
+## Unsupported Boundaries
+
+Unsupported boundaries remain explicit: legacy `.doc` / `.xls`, encrypted files,
+OCR, interactive Office dialogs, and complex PDF original-content editing are
+reported as unsupported rather than hidden behind ad hoc conversions.

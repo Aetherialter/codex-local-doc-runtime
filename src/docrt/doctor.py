@@ -72,6 +72,12 @@ def doctor_report(
             "executable": sys.executable,
             "version": sys.version,
         },
+        "uv": {
+            "available": shutil.which("uv") is not None,
+            "path": shutil.which("uv"),
+            "required_entrypoint": "uv run docrt",
+            "auto_bootstrap_command": "winget install --id astral-sh.uv -e",
+        },
         "packages": packages,
         "office": {
             "word_com_available": word_available,
@@ -113,10 +119,16 @@ def agent_report(config: Config, base_report: dict[str, object] | None = None) -
     report = base_report or doctor_report(config)
     packages = report["packages"]
     assert isinstance(packages, dict)
+    optional_package_names = {"pytest"}
     required_packages = {
         name: bool(value.get("available")) if isinstance(value, dict) else False
         for name, value in packages.items()
-        if name not in {"pytest"}
+        if name not in optional_package_names
+    }
+    optional_packages = {
+        name: bool(value.get("available")) if isinstance(value, dict) else False
+        for name, value in packages.items()
+        if name in optional_package_names
     }
     writable_paths = {
         "outputs": _is_writable(config.outputs_path),
@@ -128,10 +140,21 @@ def agent_report(config: Config, base_report: dict[str, object] | None = None) -
     poppler = report["poppler"]
     office = report["office"]
     core = report["core"]
+    uv = report["uv"]
     assert isinstance(poppler, dict)
     assert isinstance(office, dict)
     assert isinstance(core, dict)
-    required_ok = all(required_packages.values()) and all(writable_paths.values())
+    assert isinstance(uv, dict)
+    uv_required_ok = bool(uv.get("available"))
+    word_required_ok = bool(office.get("word_com_available"))
+    excel_required_ok = bool(office.get("excel_com_available"))
+    required_ok = (
+        all(required_packages.values())
+        and all(writable_paths.values())
+        and uv_required_ok
+        and word_required_ok
+        and excel_required_ok
+    )
     return {
         "ready": required_ok,
         "project_root": str(Path.cwd().resolve().absolute()),
@@ -141,8 +164,12 @@ def agent_report(config: Config, base_report: dict[str, object] | None = None) -
             "packages": required_packages,
             "paths_writable": writable_paths,
             "cli_json_contract": True,
+            "uv_entrypoint": uv_required_ok,
+            "word_com_available": word_required_ok,
+            "excel_com_available": excel_required_ok,
         },
         "optional": {
+            "packages": optional_packages,
             "word_com_available": bool(office.get("word_com_available")),
             "excel_com_available": bool(office.get("excel_com_available")),
             "poppler_available": bool(poppler.get("available")),

@@ -9,6 +9,7 @@ Use this repository as the document runtime:
 
 ```powershell
 Set-Location D:\project\python\codex-local-doc-runtime
+.\scripts\bootstrap-uv.ps1
 uv run docrt doctor --agent --office-smoke
 ```
 
@@ -112,9 +113,11 @@ Not supported:
 - interactive Office dialog workflows
 - complex PDF original-content editing
 
-Office COM conversion requires Microsoft Word or Microsoft Excel to be
-installed in the current Windows user session. Rust acceleration is optional:
-without a local Rust/maturin build, `docrt` falls back to the Python core.
+Document processing in the mainline runtime requires Microsoft Word and
+Microsoft Excel COM in the current Windows user session. Missing Office returns
+structured errors; v1.1 does not provide a no-Office fallback. Rust acceleration
+is optional: without a local Rust/maturin build, `docrt` falls back to the
+Python core.
 
 For edit workflows, first `read-*`, then `validate-patch`, then `patch-*`
 with `--dry-run`, then execute the patch, then `verify-*`.
@@ -130,6 +133,7 @@ codex-local-doc-runtime repository at D:\project\python\codex-local-doc-runtime.
 Before processing documents, run:
 
 Set-Location D:\project\python\codex-local-doc-runtime
+.\scripts\bootstrap-uv.ps1
 uv run docrt doctor --agent --office-smoke
 
 Use docrt for document inspection, rendering, patching, verification, and

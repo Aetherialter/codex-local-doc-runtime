@@ -7,6 +7,7 @@ from typing import Any
 from docrt.models import ErrorCode
 from docrt.paths import ValidationError, validate_input_path
 from docrt.read_ops import read_docx, read_xlsx
+from docrt.runtime_env import assert_mainline_runtime_for_path, confirmed_mainline_runtime
 
 
 def verify_docx(
@@ -14,8 +15,13 @@ def verify_docx(
     after_path: str | Path,
     expect_path: str | Path | None = None,
 ) -> dict[str, object]:
-    before = read_docx(before_path)
-    after = read_docx(after_path)
+    before_file = validate_input_path(before_path, {".docx"})
+    after_file = validate_input_path(after_path, {".docx"})
+    assert_mainline_runtime_for_path(before_file)
+    assert_mainline_runtime_for_path(after_file)
+    with confirmed_mainline_runtime():
+        before = read_docx(before_file)
+        after = read_docx(after_file)
     result = _compare_docx_read_results(before, after)
     _apply_expectation(result, expect_path)
     return result
@@ -26,8 +32,13 @@ def verify_xlsx(
     after_path: str | Path,
     expect_path: str | Path | None = None,
 ) -> dict[str, object]:
-    before = read_xlsx(before_path)
-    after = read_xlsx(after_path)
+    before_file = validate_input_path(before_path, {".xlsx"})
+    after_file = validate_input_path(after_path, {".xlsx"})
+    assert_mainline_runtime_for_path(before_file)
+    assert_mainline_runtime_for_path(after_file)
+    with confirmed_mainline_runtime():
+        before = read_xlsx(before_file)
+        after = read_xlsx(after_file)
     result = _compare_xlsx_read_results(before, after)
     _apply_expectation(result, expect_path)
     return result

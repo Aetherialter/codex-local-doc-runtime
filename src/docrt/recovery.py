@@ -15,6 +15,10 @@ RECOVERY_ACTIONS: dict[str, list[str]] = {
         "Convert .doc to .docx or .xls to .xlsx before running docrt.",
         "Use Microsoft Office or another trusted converter outside docrt.",
     ],
+    ErrorCode.CORRUPT_DOCUMENT.value: [
+        "Open the document in its native application and save a repaired copy.",
+        "Retry with a known-good .docx, .pdf, or .xlsx file.",
+    ],
     ErrorCode.ENCRYPTED_FILE_UNSUPPORTED.value: [
         "Create an unencrypted copy of the document before running docrt.",
         "Do not pass passwords through logs, task manifests, or patch files.",
@@ -49,6 +53,18 @@ RECOVERY_ACTIONS: dict[str, list[str]] = {
     ErrorCode.DEPENDENCY_MISSING.value: [
         "Run uv sync --dev from the repository root.",
         "Run uv run docrt doctor to confirm required Python packages.",
+    ],
+    ErrorCode.UV_UNAVAILABLE.value: [
+        "Install uv with winget install --id astral-sh.uv -e.",
+        "Open a new PowerShell session, then rerun uv run docrt doctor --agent.",
+    ],
+    ErrorCode.UV_BOOTSTRAP_FAILED.value: [
+        "Install uv manually with winget install --id astral-sh.uv -e.",
+        "If winget is unavailable, install uv from the official Astral release channel.",
+    ],
+    ErrorCode.OFFICE_COM_REQUIRED.value: [
+        "Install Microsoft Word and Microsoft Excel desktop editions.",
+        "Rerun uv run docrt doctor --agent --office-smoke.",
     ],
     ErrorCode.WORD_COM_UNAVAILABLE.value: [
         "Install Microsoft Word desktop edition.",

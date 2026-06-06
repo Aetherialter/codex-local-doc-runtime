@@ -12,7 +12,7 @@ def ensure_pdf_not_encrypted(document: Any) -> None:
     ):
         raise ValidationError(
             ErrorCode.ENCRYPTED_FILE_UNSUPPORTED,
-            "Encrypted PDF files are not supported in v1.0",
+            "Encrypted PDF files are not supported in v1.1",
             context={
                 "document_type": "pdf",
                 "needs_pass": bool(getattr(document, "needs_pass", False)),
@@ -24,6 +24,6 @@ def pdf_text_layer_warnings(total_text_chars: int) -> list[str]:
     if total_text_chars:
         return []
     return [
-        "PDF has no text layer; OCR is not supported in v1.0.",
+        "PDF has no text layer; OCR is not supported in v1.1.",
         "Use an external OCR tool before running docrt text extraction.",
     ]

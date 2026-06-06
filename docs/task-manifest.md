@@ -21,7 +21,7 @@ created, how relative paths resolve from the current working directory, and
 whether every step supports dry-run planning.
 
 `supports_native_dry_run` means the underlying operation can validate and plan
-without writing output files. In v1.0, only `patch-docx` and `patch-xlsx` are
+without writing output files. In v1.1, only `patch-docx` and `patch-xlsx` are
 native dry-run operations. Other tasks use plan-only dry-run at the
 task-manifest layer.
 
@@ -52,6 +52,7 @@ Supported tasks:
 - `xlsx-to-pdf`
 - `render-pdf`
 - `search-pdf`
+- `annotate-pdf`
 
 ## Dry Run
 
@@ -93,6 +94,17 @@ would be executed without modifying documents.
 
 PDF `read-pdf`, `render-pdf`, and `search-pdf` support `pages` using 1-based
 page numbers such as `"1"`, `"1-3"`, or `"1,3-5"`.
+
+## PDF Annotation Task
+
+```json
+{
+  "task": "annotate-pdf",
+  "input": "examples/fixtures/sample.pdf",
+  "annotations": "examples/annotations/pdf-valid.json",
+  "output": "outputs/tasks/sample.annotated.pdf"
+}
+```
 
 Failures use the same JSON result error fields as direct CLI commands, including
 `error_code`, `error_message`, `log_path`, and `diagnostic_report_path`.

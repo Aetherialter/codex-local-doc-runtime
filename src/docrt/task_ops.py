@@ -6,13 +6,20 @@ import traceback as tb
 from pathlib import Path
 from typing import Any
 
+from docrt.api import (
+    annotate_document,
+    export_pdf,
+    inspect_document,
+    patch_document,
+    read_document,
+    render_document,
+    search_document,
+    verify_document,
+)
 from docrt.config import Config
 from docrt.core_bridge import validate_basic_json_object
-from docrt.docx_ops import inspect_docx
 from docrt.jsonutil import dump_file
 from docrt.models import ErrorCode
-from docrt.office_convert import docx_to_pdf, xlsx_to_pdf
-from docrt.patch_ops import patch_docx, patch_xlsx
 from docrt.paths import (
     ValidationError,
     default_inspect_output,
@@ -20,11 +27,7 @@ from docrt.paths import (
     path_resolution,
     validate_input_path,
 )
-from docrt.pdf_ops import inspect_pdf, render_pdf, search_pdf
-from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.recovery import recovery_actions
-from docrt.verify_ops import verify_docx, verify_xlsx
-from docrt.xlsx_ops import inspect_xlsx
 
 SUPPORTED_TASKS = {
     "inspect-docx",
@@ -41,6 +44,7 @@ SUPPORTED_TASKS = {
     "xlsx-to-pdf",
     "render-pdf",
     "search-pdf",
+    "annotate-pdf",
 }
 
 STEP_REF_RE = re.compile(r"\$\{steps\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_.-]+)\}")
@@ -201,56 +205,65 @@ def _execute_task(
     task: str, manifest: dict[str, Any], config: Config, run_id: str
 ) -> dict[str, object]:
     if task == "inspect-docx":
-        return _write_optional(inspect_docx(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(
+            inspect_document(_require_string(manifest, "input")), manifest, config
+        )
     if task == "inspect-pdf":
-        return _write_optional(inspect_pdf(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(
+            inspect_document(_require_string(manifest, "input")), manifest, config
+        )
     if task == "inspect-xlsx":
-        return _write_optional(inspect_xlsx(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(
+            inspect_document(_require_string(manifest, "input")), manifest, config
+        )
     if task == "read-docx":
-        return _write_optional(read_docx(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(read_document(_require_string(manifest, "input")), manifest, config)
     if task == "read-pdf":
         return _write_optional(
-            read_pdf(_require_string(manifest, "input"), pages=_optional_string(manifest, "pages")),
+            read_document(
+                _require_string(manifest, "input"),
+                pages=_optional_string(manifest, "pages"),
+            ),
             manifest,
             config,
         )
     if task == "read-xlsx":
-        return _write_optional(read_xlsx(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(read_document(_require_string(manifest, "input")), manifest, config)
     if task == "patch-docx":
-        return patch_docx(
+        return patch_document(
             _require_string(manifest, "input"),
             _require_string(manifest, "patch"),
             _require_string(manifest, "output"),
             dry_run=bool(manifest.get("dry_run", False)),
         )
     if task == "patch-xlsx":
-        return patch_xlsx(
+        return patch_document(
             _require_string(manifest, "input"),
             _require_string(manifest, "patch"),
             _require_string(manifest, "output"),
             dry_run=bool(manifest.get("dry_run", False)),
         )
     if task == "verify-docx":
-        return verify_docx(
+        return verify_document(
             _require_string(manifest, "before"),
             _require_string(manifest, "after"),
-            manifest.get("expect"),
+            expect_path=manifest.get("expect"),
         )
     if task == "verify-xlsx":
-        return verify_xlsx(
+        return verify_document(
             _require_string(manifest, "before"),
             _require_string(manifest, "after"),
-            manifest.get("expect"),
+            expect_path=manifest.get("expect"),
         )
     if task == "docx-to-pdf":
-        return docx_to_pdf(
+        return export_pdf(
             _require_string(manifest, "input"),
             manifest.get("output"),
             config,
             run_id,
         )
     if task == "xlsx-to-pdf":
-        return xlsx_to_pdf(
+        return export_pdf(
             _require_string(manifest, "input"),
             manifest.get("output"),
             config,
@@ -261,16 +274,22 @@ def _execute_task(
         output_dir = manifest.get("output_dir") or default_render_output_dir(
             input_path, config.outputs_path
         )
-        return render_pdf(input_path, output_dir, pages=_optional_string(manifest, "pages"))
+        return render_document(input_path, output_dir, pages=_optional_string(manifest, "pages"))
     if task == "search-pdf":
         return _write_optional(
-            search_pdf(
+            search_document(
                 _require_string(manifest, "input"),
                 _require_string(manifest, "query"),
                 pages=_optional_string(manifest, "pages"),
             ),
             manifest,
             config,
+        )
+    if task == "annotate-pdf":
+        return annotate_document(
+            _require_string(manifest, "input"),
+            _require_string(manifest, "annotations"),
+            _require_string(manifest, "output"),
         )
     raise ValidationError(ErrorCode.VALIDATION_FAILED, f"Unsupported task: {task}")
 
@@ -297,6 +316,7 @@ def _task_plan(task: str, manifest: dict[str, Any]) -> dict[str, object]:
         "output",
         "output_dir",
         "patch",
+        "annotations",
         "expect",
         "query",
         "pages",
@@ -348,6 +368,8 @@ def _explain_step(manifest: dict[str, Any], *, index: int) -> dict[str, object]:
     if "patch" in manifest:
         patches.append(str(manifest["patch"]))
         reads.append(str(manifest["patch"]))
+    if "annotations" in manifest:
+        reads.append(str(manifest["annotations"]))
     if "expect" in manifest:
         expects.append(str(manifest["expect"]))
         reads.append(str(manifest["expect"]))
@@ -405,7 +427,7 @@ def _path_resolution_summary(steps: list[dict[str, object]]) -> list[dict[str, o
 
 
 def _requires_office_com(task: str) -> bool:
-    return task in {"docx-to-pdf", "xlsx-to-pdf"}
+    return task in SUPPORTED_TASKS
 
 
 def _supports_native_dry_run(task: str) -> bool:

@@ -34,6 +34,7 @@ def test_recovery_actions_cover_common_errors() -> None:
         ErrorCode.FILE_LOCKED.value,
         ErrorCode.WORD_COM_UNAVAILABLE.value,
         ErrorCode.POPPLER_UNAVAILABLE.value,
+        ErrorCode.CORRUPT_DOCUMENT.value,
         ErrorCode.VALIDATION_FAILED.value,
     ):
         assert recovery_actions(code)
@@ -80,6 +81,28 @@ def test_schema_validation_for_patch_task_and_result(tmp_path: Path) -> None:
     assert validate_patch(patch_path)["valid"] is True
     assert validate_task(task_path)["valid"] is True
     assert validate_result(result_path)["valid"] is True
+
+
+def test_schema_validation_accepts_pdf_annotation_task(tmp_path: Path) -> None:
+    task_path = tmp_path / "task.json"
+    task_path.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "annotate",
+                        "task": "annotate-pdf",
+                        "input": "sample.pdf",
+                        "annotations": "annotations.json",
+                        "output": "annotated.pdf",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert validate_task(task_path)["valid"] is True
 
 
 def test_schema_validation_rejects_non_object(tmp_path: Path) -> None:
@@ -252,7 +275,23 @@ def test_agent_config_contains_codex_runtime_fragment(
 
     assert result["runtime"]["package"] == "docrt"
     assert result["runtime"]["repository"].endswith("codex-local-doc-runtime.git")
+    assert result["runtime"]["primary_entrypoint"] == "uv run docrt"
+    assert result["mainline_policy"]["distribution"] == "windows_local_office_runtime_toolchain"
+    assert result["mainline_policy"]["auto_installs_uv"] is True
+    assert result["mainline_policy"]["default_engine"] == "office_required_native_processing"
+    assert result["mainline_policy"]["office_engine"] == "required_local_office_runtime"
+    assert result["mainline_policy"]["requires_local_office"] is True
+    assert result["mainline_policy"]["standalone_exe_in_main"] is False
+    assert result["mainline_policy"]["missing_office_behavior"] == "fail_fast_structured_error"
+    assert "uv" in result["environment"]["runtime_required"]
+    assert "Microsoft Word desktop COM" in result["environment"]["runtime_required"]
+    assert r".\scripts\bootstrap-uv.ps1" in result["environment"]["auto_bootstrap"]
+    assert "uv via winget when missing" in result["environment"]["auto_bootstrap"]
+    assert result["execution_branches"]["mainline_source_toolchain"]["entrypoint"] == "uv run docrt"
+    assert "standalone exe" in result["agents_md"]
+    assert ".venv\\Scripts\\docrt.exe" not in result["agents_md"]
     assert "uv run docrt doctor --agent --office-smoke" in result["agents_md"]
+    assert r".\scripts\bootstrap-uv.ps1" in result["agents_md"]
     assert "AGENTS.md" in result["agents_md"]
     assert "explain-task" in result["commands"]["task"][1]
 

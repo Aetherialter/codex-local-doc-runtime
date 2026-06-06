@@ -15,7 +15,8 @@ Add three Agent-facing commands:
   commands, common command groups, unsupported capabilities, and a reusable
   `AGENTS.md` Markdown fragment.
 - `docrt doctor --agent` adds Agent readiness checks to the normal doctor JSON,
-  including writable runtime paths and optional Office/Poppler/Rust status.
+  including writable runtime paths, required Office COM status, uv entrypoint
+  status, and optional Poppler/Rust status.
 - `docrt explain-task` describes task manifest effects before execution,
   including files read, files written, generated artifacts, Office COM need,
   and dry-run support.
@@ -37,8 +38,8 @@ scripts or stale instructions.
 ## Disadvantages
 
 - The CLI surface grows and must stay backward compatible.
-- Agent readiness can only report optional desktop dependencies such as Office
-  COM and Poppler; it cannot make them available in CI.
+- Agent readiness can report required desktop dependencies such as Office COM,
+  but GitHub-hosted CI still cannot prove real desktop Office success.
 - The generated Markdown fragment must be kept in sync with real CLI behavior.
 
 ## Alternatives

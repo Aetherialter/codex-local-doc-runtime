@@ -137,7 +137,7 @@ def _next_step(
     if success_after_last_error:
         return "A later successful run was observed for this operation; keep monitoring logs."
     if recommendation.get("category") == "unsupported_boundary":
-        return "This is a documented v1.0 unsupported boundary; adjust the input or workflow."
+        return "This is a documented v1.1 unsupported boundary; adjust the input or workflow."
     if _auto_apply_allowed(risk, recommendation, success_after_last_error):
         return "Implement the low-risk fix in the next development pass, then run validation."
     return "Review the proposed fix before changing core behavior."

@@ -5,10 +5,12 @@ from pathlib import Path
 from docrt.paths import ensure_unlocked_for_read, validate_input_path, validate_output_path
 from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
 from docrt.pdf_safety import ensure_pdf_not_encrypted, pdf_text_layer_warnings
+from docrt.runtime_env import assert_mainline_runtime_for_path
 
 
 def inspect_pdf(path: str | Path) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     try:
         import fitz
@@ -58,6 +60,7 @@ def render_pdf(
     pages: str | None = None,
 ) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     normalized_output = validate_output_path(Path(output_dir) / ".docrt-write-test").parent
     normalized_output.mkdir(parents=True, exist_ok=True)
@@ -97,6 +100,7 @@ def search_pdf(
     pages: str | None = None,
 ) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
+    assert_mainline_runtime_for_path(input_path)
     ensure_unlocked_for_read(input_path)
     if not query:
         raise ValueError("query must not be empty")

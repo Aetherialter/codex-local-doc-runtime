@@ -1,46 +1,50 @@
-# ADR-0002: Use Microsoft Office COM for DOCX and XLSX PDF Export
+# ADR-0002: Require Local Microsoft Office COM
 
 ## Background
 
-DOCX and XLSX to PDF conversion quality depends heavily on layout fidelity.
-Pure Python libraries can inspect these formats, but they do not reliably match
-Microsoft Office rendering.
+The target workflow is local Windows document automation for Codex / Agent use.
+The user wants one fixed path for Word, PDF, and Excel processing rather than a
+portable no-Office fallback matrix.
 
 ## Decision
 
-Use Microsoft Word COM for DOCX to PDF and Microsoft Excel COM for XLSX to PDF
-on Windows.
+Require local Microsoft Word and Microsoft Excel COM for mainline document
+operations. `docrt` performs Office availability checks before public document
+APIs dispatch work. Missing Office returns structured errors; main does not
+currently implement a no-Office fallback.
 
 ## Reasons
 
-Office COM uses the same desktop applications that users commonly rely on for
-final document rendering, which improves layout fidelity for local automation.
+- Word and Excel are the user's authoritative local document applications.
+- A fixed runtime contract is easier for Agent workflows to reason about.
+- High-fidelity DOCX/XLSX PDF export already requires Office COM.
+- Failing early is clearer than silently changing behavior across machines.
 
 ## Advantages
 
-- Better fidelity for complex Word and Excel layouts.
-- Direct support for common Office documents on Windows.
-- Clear operational boundary: Office-dependent features are diagnosed by
-  `docrt doctor`.
+- One predictable runtime path: Windows + uv + Office.
+- Better alignment with local Office document rendering.
+- Missing Office produces immediate structured diagnostics.
 
 ## Disadvantages
 
-- Requires Microsoft Office on the target machine.
-- Only works on Windows.
-- COM automation can leave processes behind if conversion fails unexpectedly, so
-  the project needs process diagnostics and careful cleanup behavior.
+- Linux, macOS, WSL, Docker, and Windows without Office are not supported
+  mainline targets for document processing.
+- GitHub-hosted CI cannot prove real desktop Office success.
+- Office COM automation still needs timeout and process cleanup diagnostics.
 
 ## Alternatives
 
-- LibreOffice headless conversion: more portable, but not always faithful to
-  Microsoft Office layouts.
-- Cloud conversion APIs: simpler operations, but introduces network, privacy,
-  cost, and credential concerns.
-- Pure Python conversion: avoids desktop dependencies, but does not provide
-  reliable PDF export fidelity.
+- LibreOffice headless conversion: more portable, but not the requested fixed
+  local Office path.
+- Pure Python fallback: useful internally, but not accepted as public no-Office
+  behavior for main.
+- Cloud conversion APIs: introduce network, privacy, cost, and credentials.
 
 ## Impact
 
-Office conversion is isolated in subprocess workers, guarded by timeouts, and
-paired with process diagnostics. CI avoids relying on Office-specific conversion
-success.
+`doctor --agent` treats Word COM and Excel COM as required. Public document APIs
+call runtime preflight before dispatching to internal Python modules such as
+`python-docx`, PyMuPDF, and openpyxl. Those libraries are implementation
+details after the required Office runtime is available, not a no-Office fallback
+guarantee.

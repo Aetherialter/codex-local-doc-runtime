@@ -126,7 +126,7 @@ def _raise_unsupported_format(path: Path, extensions: set[str]) -> None:
     if suffix in LEGACY_OFFICE_EXTENSIONS:
         raise ValidationError(
             ErrorCode.UNSUPPORTED_LEGACY_FORMAT,
-            f"Legacy Office format is not supported in v1.0: {suffix}",
+            f"Legacy Office format is not supported in v1.1: {suffix}",
             context={
                 "path_resolution": path_resolution(path),
                 "expected_extensions": sorted(extensions),
@@ -155,7 +155,7 @@ def _validate_container_signature(path: Path, extensions: set[str]) -> None:
             ErrorCode.ENCRYPTED_FILE_UNSUPPORTED,
             (
                 f"{suffix} appears to be an encrypted or legacy OLE Office container; "
-                "password-protected Office files are not supported in v1.0"
+                "password-protected Office files are not supported in v1.1"
             ),
             context={
                 "path_resolution": path_resolution(path),

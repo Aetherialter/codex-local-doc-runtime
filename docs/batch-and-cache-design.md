@@ -15,8 +15,15 @@ uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
 ```
 
-`fingerprint`, `batch-fingerprint`, and indexed `search` use the Rust core when
-available and fall back to Python when the native extension is not built.
+`fingerprint`, `batch-fingerprint`, `cache-read`, `batch-read`,
+`batch-inspect`, and `index` accept supported document paths, so they run the
+same `uv + local Word/Excel COM` preflight as the single-file document
+commands. Missing Office returns a structured item-level error in batch
+commands.
+
+After runtime preflight passes, `fingerprint`, `batch-fingerprint`, and indexed
+`search` use the Rust core when available and fall back to Python when the
+native extension is not built.
 
 `batch-read` returns read output and can use `--use-cache`. `batch-inspect`
 returns structural inspection output and does not use the read cache.
