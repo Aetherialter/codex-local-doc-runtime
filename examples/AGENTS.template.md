@@ -54,6 +54,7 @@ uv run docrt clean --retention
 uv run docrt analyze-logs --days 30
 uv run docrt repair-plan --days 30
 uv run docrt maintenance
+uv run docrt job-start clean-retention
 ```
 
 Rules:

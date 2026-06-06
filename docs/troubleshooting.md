@@ -71,8 +71,12 @@ Use background jobs only for low-risk maintenance tasks:
 uv run docrt job-start maintenance
 uv run docrt job-start analyze-logs --days 30
 uv run docrt job-start repair-plan --days 30
+uv run docrt job-start clean-retention
 uv run docrt job-status <job-id>
 ```
+
+`job-start clean-retention` is a background dry-run by default. Add `--yes`
+only after the retention cleanup plan is acceptable.
 
 Document editing and conversion remain foreground operations in this preview so
 users can see the exact JSON result before trusting the output file.

@@ -10,6 +10,7 @@ from docrt.jsonutil import dump_file
 from docrt.log_analysis import analyze_logs
 from docrt.maintenance import maintenance_report
 from docrt.repair_plan import repair_plan
+from docrt.storage_ops import clean
 from docrt.timeutil import utc_now_iso
 
 
@@ -19,11 +20,12 @@ def main() -> int:
     parser.add_argument(
         "--task",
         required=True,
-        choices=["maintenance", "analyze-logs", "repair-plan"],
+        choices=["maintenance", "analyze-logs", "repair-plan", "clean-retention"],
     )
     parser.add_argument("--status", required=True)
     parser.add_argument("--result", required=True)
     parser.add_argument("--days", type=int, default=7)
+    parser.add_argument("--yes", action="store_true")
     args = parser.parse_args()
 
     status_path = Path(args.status)
@@ -35,6 +37,8 @@ def main() -> int:
             data = maintenance_report(config, analyze_days=args.days)
         elif args.task == "analyze-logs":
             data = analyze_logs(config, days=args.days)
+        elif args.task == "clean-retention":
+            data = clean(config, retention=True, yes=args.yes, include_files=False)
         else:
             data = repair_plan(config, days=args.days)
         result = {

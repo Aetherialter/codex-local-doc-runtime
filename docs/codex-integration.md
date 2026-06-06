@@ -59,6 +59,7 @@ uv run docrt storage-report
 uv run docrt clean --logs --work --cache
 uv run docrt clean --retention
 uv run docrt repair-plan --days 30
+uv run docrt job-start clean-retention
 ```
 
 Use explicit output paths when repeatability matters:

@@ -56,6 +56,17 @@ uv run docrt clean --logs --work --cache --yes
 uv run docrt clean --retention --yes
 ```
 
+Run retention cleanup in the background when the exact result can be reviewed
+later through `job-status`:
+
+```powershell
+uv run docrt job-start clean-retention
+uv run docrt job-start clean-retention --yes
+uv run docrt job-status <job-id>
+```
+
+The background command is also a dry-run unless `--yes` is provided.
+
 `clean` refuses to delete targets outside the project root and does not follow
 symlinked files.
 

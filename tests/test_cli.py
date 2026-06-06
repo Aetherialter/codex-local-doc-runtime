@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 import fitz
@@ -307,3 +308,29 @@ def test_job_start_rejects_unsupported_task(tmp_path: Path, monkeypatch):
     assert payload["data"]["started"] is False
     assert "maintenance" in payload["data"]["supported_tasks"]
     assert "repair-plan" in payload["data"]["supported_tasks"]
+    assert "clean-retention" in payload["data"]["supported_tasks"]
+
+
+def test_job_start_clean_retention_command(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["job-start", "clean-retention"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["started"] is True
+    assert payload["data"]["task"] == "clean-retention"
+    final = _wait_for_cli_job(Path(payload["data"]["status_path"]))
+    assert final["status"] == "succeeded"
+
+
+def _wait_for_cli_job(status_path: Path) -> dict[str, object]:
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if status_path.exists():
+            payload = json.loads(status_path.read_text(encoding="utf-8"))
+            if payload.get("status") in {"succeeded", "failed"}:
+                return payload
+        time.sleep(0.1)
+    return json.loads(status_path.read_text(encoding="utf-8"))

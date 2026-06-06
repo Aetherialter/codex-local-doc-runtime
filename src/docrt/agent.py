@@ -100,6 +100,7 @@ def _commands() -> dict[str, list[str] | str]:
             "uv run docrt analyze-logs --days 30",
             "uv run docrt repair-plan --days 30",
             "uv run docrt maintenance",
+            "uv run docrt job-start clean-retention",
             "uv run docrt job-start repair-plan --days 30",
         ],
     }

@@ -921,12 +921,15 @@ def maintenance_cmd(
 def job_start_cmd(
     task: str,
     days: Annotated[int, typer.Option("--days", min=1)] = 7,
+    yes: Annotated[bool, typer.Option("--yes")] = False,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
 ) -> None:
     config = _config(poppler_path, timeout, force_kill_office)
     args = ["--days", str(days)]
+    if yes:
+        args.append("--yes")
     result = run_operation(
         "job-start",
         lambda _run_id, cfg, _logger: start_job(cfg, task, args=args),

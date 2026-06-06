@@ -234,8 +234,12 @@ uv run docrt maintenance
 uv run docrt job-start maintenance
 uv run docrt job-start analyze-logs --days 30
 uv run docrt job-start repair-plan --days 30
+uv run docrt job-start clean-retention
 uv run docrt job-status <job-id>
 ```
+
+`job-start clean-retention` 默认只做后台 dry-run；如果确认要删除过期日志、诊断和缓存，
+使用 `uv run docrt job-start clean-retention --yes`。
 
 当前后台任务只用于低风险维护任务。DOCX/PDF/XLSX 核心读取、编辑、转换仍建议先走前台
 JSON 命令，避免用户不知道后台任务是否已经改动文档。

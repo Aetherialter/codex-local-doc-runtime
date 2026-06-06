@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ def test_start_job_rejects_unsupported_task(tmp_path: Path, monkeypatch) -> None
 
     assert result["started"] is False
     assert "maintenance" in result["supported_tasks"]
+    assert "clean-retention" in result["supported_tasks"]
 
 
 def test_start_job_runs_maintenance_and_writes_status(tmp_path: Path, monkeypatch) -> None:
@@ -47,6 +49,31 @@ def test_start_job_runs_repair_plan_and_writes_status(tmp_path: Path, monkeypatc
 
     assert final["job"]["status"] == "succeeded"
     assert Path(final["job"]["result_path"]).exists()
+
+
+def test_start_job_runs_clean_retention_as_dry_run(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(
+        outputs_dir="outputs",
+        logs_dir="logs",
+        work_dir="work",
+        diagnostics_dir="outputs/diagnostics",
+        state_dir="state",
+    )
+    log_path = tmp_path / "logs" / "old.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text("{}", encoding="utf-8")
+
+    started = start_job(config, "clean-retention")
+    job_id = str(started["job_id"])
+    final = _wait_for_job(config, job_id)
+    result_path = Path(final["job"]["result_path"])
+
+    assert final["job"]["status"] == "succeeded"
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+    assert payload["data"]["retention"] is True
+    assert payload["data"]["dry_run"] is True
+    assert log_path.exists()
 
 
 def _wait_for_job(config: Config, job_id: str) -> dict[str, object]:
