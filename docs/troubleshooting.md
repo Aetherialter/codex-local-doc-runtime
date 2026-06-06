@@ -33,3 +33,18 @@ uv run docrt validate-task path\to\task.json
 ```
 
 If a command reports `diagnostic_report_path`, read that JSON before retrying.
+
+## Error Log Analysis
+
+Failures are also written to daily JSONL files under `logs/errors/`. Use these
+commands to summarize recent failures and generate repair suggestions:
+
+```powershell
+uv run docrt analyze-logs
+uv run docrt analyze-logs --days 30 --limit 200
+uv run docrt recent-errors --limit 20
+```
+
+`analyze-logs` groups errors by `error_code` and operation, reports affected
+modules, and emits suggested files plus validation commands for the next
+maintenance pass.

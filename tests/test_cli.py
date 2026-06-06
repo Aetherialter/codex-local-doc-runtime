@@ -135,3 +135,47 @@ def test_batch_fingerprint_command_outputs_json(tmp_path: Path):
     assert payload["operation"] == "batch-fingerprint"
     assert payload["data"]["count"] == 2
     assert payload["data"]["backend"] in {"python", "rust"}
+
+
+def test_clean_command_omits_file_list_by_default(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    log_path = tmp_path / "logs" / "old.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["clean", "--logs"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["files"] == []
+    assert payload["data"]["files_omitted"] >= 1
+
+
+def test_analyze_logs_command_outputs_recommendations(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    error_log.parent.mkdir(parents=True)
+    error_log.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-06-06T00:00:00.000Z",
+                "operation": "patch-docx",
+                "module": "docrt.patch_ops",
+                "error_code": "VALIDATION_FAILED",
+                "exception_type": "ValidationError",
+                "message": "expected_text mismatch",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["analyze-logs", "--days", "30"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "analyze-logs"
+    assert payload["data"]["issue_count"] == 1
+    assert payload["data"]["recommendations"]

@@ -27,6 +27,7 @@ def clean(
     *,
     older_than_days: int | None = None,
     yes: bool = False,
+    include_files: bool = True,
     logs: bool = False,
     outputs: bool = False,
     work: bool = False,
@@ -75,7 +76,8 @@ def clean(
         "planned_bytes": sum(int(item["bytes"]) for item in files),
         "deleted_count": len(deleted),
         "deleted_bytes": sum(int(item["bytes"]) for item in deleted),
-        "files": files,
+        "files": files if include_files else [],
+        "files_omitted": 0 if include_files else len(files),
     }
 
 

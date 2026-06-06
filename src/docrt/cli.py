@@ -20,6 +20,7 @@ from docrt.config_cli import config_init, config_set, config_show
 from docrt.doctor import doctor_report
 from docrt.docx_ops import inspect_docx
 from docrt.jsonutil import dump_file, dumps
+from docrt.log_analysis import analyze_logs, recent_errors
 from docrt.models import exit_code_for_result
 from docrt.office_convert import docx_to_pdf, xlsx_to_pdf
 from docrt.patch_ops import patch_docx, patch_xlsx
@@ -798,6 +799,7 @@ def storage_report_cmd(
 def clean_cmd(
     older_than: Annotated[int | None, typer.Option("--older-than", min=0)] = None,
     yes: Annotated[bool, typer.Option("--yes")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
     logs: Annotated[bool, typer.Option("--logs")] = False,
     outputs: Annotated[bool, typer.Option("--outputs")] = False,
     work: Annotated[bool, typer.Option("--work")] = False,
@@ -816,6 +818,7 @@ def clean_cmd(
             cfg,
             older_than_days=older_than,
             yes=yes,
+            include_files=verbose,
             logs=logs,
             outputs=outputs,
             work=work,
@@ -826,6 +829,47 @@ def clean_cmd(
         ),
         config=config,
         backend="python",
+    )
+    _emit(result)
+
+
+@app.command("analyze-logs")
+def analyze_logs_cmd(
+    days: Annotated[int, typer.Option("--days", min=1)] = 7,
+    limit: Annotated[int, typer.Option("--limit", min=0)] = 200,
+    include_events: Annotated[bool, typer.Option("--include-events")] = False,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "analyze-logs",
+        lambda _run_id, cfg, _logger: analyze_logs(
+            cfg,
+            days=days,
+            limit=limit,
+            include_events=include_events,
+        ),
+        config=config,
+        backend="log-analysis",
+    )
+    _emit(result)
+
+
+@app.command("recent-errors")
+def recent_errors_cmd(
+    limit: Annotated[int, typer.Option("--limit", min=0)] = 20,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "recent-errors",
+        lambda _run_id, cfg, _logger: recent_errors(cfg, limit=limit),
+        config=config,
+        backend="log-analysis",
     )
     _emit(result)
 

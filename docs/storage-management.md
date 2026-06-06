@@ -26,6 +26,13 @@ uv run docrt clean --outputs --diagnostics --older-than 7
 uv run docrt clean --all
 ```
 
+By default, `clean` returns a compact summary and omits the full file list. Use
+`--verbose` when an agent or maintainer needs to inspect every planned path:
+
+```powershell
+uv run docrt clean --logs --work --cache --verbose
+```
+
 Delete only after reviewing the dry-run result:
 
 ```powershell

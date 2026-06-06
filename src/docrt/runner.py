@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import traceback as tb
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from docrt.config import Config
-from docrt.logging import JsonlLogger, write_diagnostic
+from docrt.errors import build_error_event, classify_exception
+from docrt.logging import JsonlLogger, error_log_path, try_write_diagnostic, write_jsonl_event
 from docrt.models import ErrorCode, Result
-from docrt.paths import ValidationError
-from docrt.recovery import recovery_actions
 from docrt.timeutil import Timer, make_run_id, utc_now_iso
 
 
@@ -58,6 +56,19 @@ def run_operation(
     except Exception as exc:  # CLI/library boundary intentionally converts failures.
         ended_at, duration_ms = timer.finish()
         error_code = _classify(exc)
+        error_event = build_error_event(
+            exc,
+            run_id=actual_run_id,
+            operation=operation,
+            module=getattr(handler, "__module__", None),
+            function=getattr(handler, "__name__", None),
+            context={
+                "input_path": str(input_path) if input_path else None,
+                "output_path": str(output_path) if output_path else None,
+                "backend": backend,
+            },
+        )
+        error_log_status = write_jsonl_event(error_log_path(config.logs_path), error_event)
         result = Result(
             ok=False,
             operation=operation,
@@ -71,31 +82,38 @@ def run_operation(
             error_code=error_code.value,
             error_message=str(exc),
             exception_type=type(exc).__name__,
-            traceback=tb.format_exc(),
-            recovery_actions=recovery_actions(error_code.value),
+            traceback=error_event["traceback"],
+            recovery_actions=list(error_event["recovery_actions"]),
             diagnostic_report_path=str(diagnostic_path),
             log_path=str(log_path),
-            data={},
+            data={
+                "error_event_log": error_log_status,
+            },
         )
-        write_diagnostic(
+        diagnostic_status = try_write_diagnostic(
             diagnostic_path,
             {
                 "result": result.to_dict(),
+                "error_event": error_event,
                 "generated_at": utc_now_iso(),
             },
         )
+        if not diagnostic_status["ok"]:
+            result.diagnostic_report_path = None
+            result.data["diagnostic_write"] = diagnostic_status
     logger.write(
         {
             "run_id": actual_run_id,
             "operation": operation,
             "event": "finished",
             "result": result.to_dict(),
+            "logging": logger.status(),
         }
     )
+    if logger.degraded:
+        result.data.setdefault("warnings", []).append("run log writing degraded")
     return result
 
 
 def _classify(exc: Exception) -> ErrorCode:
-    if isinstance(exc, ValidationError):
-        return exc.error_code
-    return ErrorCode.UNKNOWN_ERROR
+    return classify_exception(exc)
