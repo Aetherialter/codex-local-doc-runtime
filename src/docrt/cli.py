@@ -9,6 +9,7 @@ import typer
 from docrt.agent import agent_config
 from docrt.cache_ops import (
     batch_fingerprint,
+    batch_inspect,
     batch_read,
     cache_read,
     fingerprint_file,
@@ -737,7 +738,6 @@ def batch_read_cmd(
 @app.command("batch-inspect")
 def batch_inspect_cmd(
     paths: list[Path],
-    use_cache: Annotated[bool, typer.Option("--use-cache")] = False,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -745,9 +745,9 @@ def batch_inspect_cmd(
     config = _config(poppler_path, timeout, force_kill_office)
     result = run_operation(
         "batch-inspect",
-        lambda _run_id, cfg, _logger: batch_read(paths, cfg, use_cache=use_cache),
+        lambda _run_id, _cfg, _logger: batch_inspect(paths),
         config=config,
-        backend="core-bridge",
+        backend="inspect",
     )
     _emit(result)
 

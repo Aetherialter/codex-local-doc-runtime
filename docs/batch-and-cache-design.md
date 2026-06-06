@@ -10,7 +10,7 @@ uv run docrt fingerprint path\to\file.docx
 uv run docrt batch-fingerprint path\to\a.docx path\to\b.xlsx
 uv run docrt cache-read path\to\file.docx
 uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
-uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
+uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx
 uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
 ```
@@ -18,8 +18,11 @@ uv run docrt search "keyword"
 `fingerprint`, `batch-fingerprint`, and indexed `search` use the Rust core when
 available and fall back to Python when the native extension is not built.
 
-`batch-read` and `batch-inspect` isolate per-file failures. A missing or invalid
-file produces an item-level `error` object and increments `failed_count`, while
+`batch-read` returns read output and can use `--use-cache`. `batch-inspect`
+returns structural inspection output and does not use the read cache.
+
+Both batch commands isolate per-file failures. A missing or invalid file
+produces an item-level `error` object and increments `failed_count`, while
 successful files still return their results.
 
 ## Cache Location

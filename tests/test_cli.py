@@ -193,6 +193,26 @@ def test_batch_read_isolates_per_file_errors(tmp_path: Path):
     assert str(tmp_path) not in payload["data"]["results"][1]["error"]["error_message"]
 
 
+def test_batch_inspect_uses_structural_inspect_results(tmp_path: Path):
+    docx_path = tmp_path / "sample.docx"
+    document = Document()
+    document.add_paragraph("hello docx")
+    document.save(docx_path)
+
+    result = runner.invoke(app, ["batch-inspect", str(docx_path)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "batch-inspect"
+    assert payload["backend"] == "inspect"
+    assert payload["data"]["success_count"] == 1
+    item = payload["data"]["results"][0]
+    assert item["ok"] is True
+    assert item["result"]["paragraph_count"] == 1
+    assert "content_blocks" not in item["result"]
+
+
 def test_clean_command_omits_file_list_by_default(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     log_path = tmp_path / "logs" / "old.jsonl"

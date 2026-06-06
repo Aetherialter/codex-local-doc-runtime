@@ -205,13 +205,14 @@ uv run docrt fingerprint path\to\file.docx
 uv run docrt batch-fingerprint path\to\a.docx path\to\b.xlsx
 uv run docrt cache-read path\to\file.docx
 uv run docrt batch-read path\to\a.docx path\to\b.pdf --use-cache
-uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
+uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx
 uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
 ```
 
-`batch-read` 和 `batch-inspect` 会隔离单文件失败，返回 `success_count`、
-`failed_count` 和每个文件的 `ok/error`，不会因为其中一个文件缺失就中断整批。
+`batch-read` 返回读取内容并可使用 `--use-cache`；`batch-inspect` 返回结构检查结果，
+不使用 read cache。两者都会隔离单文件失败，返回 `success_count`、`failed_count`
+和每个文件的 `ok/error`，不会因为其中一个文件缺失就中断整批。
 
 日志分析与修复建议：
 

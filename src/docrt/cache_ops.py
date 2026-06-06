@@ -7,11 +7,14 @@ from pathlib import Path
 
 from docrt.config import Config
 from docrt.core_bridge import fingerprint, fingerprint_many, plan_batch, search_records
+from docrt.docx_ops import inspect_docx
 from docrt.errors import classify_exception, sanitize_text
 from docrt.jsonutil import dump_file
 from docrt.paths import SUPPORTED_EXTENSIONS, validate_input_path
+from docrt.pdf_ops import inspect_pdf
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
 from docrt.recovery import recovery_actions
+from docrt.xlsx_ops import inspect_xlsx
 
 
 def fingerprint_file(path: str | Path) -> dict[str, object]:
@@ -48,12 +51,26 @@ def cache_read(path: str | Path, config: Config) -> dict[str, object]:
 def batch_read(
     paths: list[str | Path], config: Config, *, use_cache: bool = False
 ) -> dict[str, object]:
+    return _batch_process(
+        paths,
+        lambda path: cache_read(path, config) if use_cache else _reader_for(Path(path))(path),
+    )
+
+
+def batch_inspect(paths: list[str | Path]) -> dict[str, object]:
+    return _batch_process(paths, lambda path: _inspector_for(Path(path))(path))
+
+
+def _batch_process(
+    paths: list[str | Path],
+    handler: Callable[[str | Path], dict[str, object]],
+) -> dict[str, object]:
     plan = plan_batch(paths)
     results = []
     for item in plan["items"]:
         path = item["path"]
         try:
-            result = cache_read(path, config) if use_cache else _reader_for(Path(path))(path)
+            result = handler(path)
             results.append({"path": str(path), "ok": True, "result": result})
         except Exception as exc:
             error_code = classify_exception(exc).value
@@ -78,10 +95,6 @@ def batch_read(
         "plan": plan,
         "results": results,
     }
-
-
-def batch_inspect(paths: list[str | Path], config: Config) -> dict[str, object]:
-    return batch_read(paths, config, use_cache=False)
 
 
 def index(paths: list[str | Path], config: Config) -> dict[str, object]:
@@ -129,4 +142,15 @@ def _reader_for(path: str | Path) -> Callable[[str | Path], dict[str, object]]:
         return read_pdf
     if suffix == ".xlsx":
         return read_xlsx
+    raise ValueError(f"Unsupported format: {suffix}")
+
+
+def _inspector_for(path: str | Path) -> Callable[[str | Path], dict[str, object]]:
+    suffix = Path(path).suffix.lower()
+    if suffix == ".docx":
+        return inspect_docx
+    if suffix == ".pdf":
+        return inspect_pdf
+    if suffix == ".xlsx":
+        return inspect_xlsx
     raise ValueError(f"Unsupported format: {suffix}")

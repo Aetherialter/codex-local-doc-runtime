@@ -52,7 +52,7 @@ uv run docrt explain-task <task.json>
 uv run docrt run-task <task.json>
 uv run docrt fingerprint <path>
 uv run docrt batch-fingerprint <path> [<path> ...]
-uv run docrt batch-inspect <path> [<path> ...] --use-cache
+uv run docrt batch-inspect <path> [<path> ...]
 uv run docrt docx-to-pdf <input> [output]
 uv run docrt xlsx-to-pdf <input> [output]
 uv run docrt storage-report
