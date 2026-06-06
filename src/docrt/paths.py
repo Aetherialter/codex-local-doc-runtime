@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from docrt.models import ErrorCode
 
@@ -9,9 +10,16 @@ SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".xlsx"}
 
 
 class ValidationError(ValueError):
-    def __init__(self, error_code: ErrorCode, message: str) -> None:
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        *,
+        context: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.error_code = error_code
+        self.context = context or {}
 
 
 def normalize_path(path: str | Path) -> Path:

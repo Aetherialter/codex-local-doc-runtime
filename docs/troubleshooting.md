@@ -21,6 +21,9 @@ before changing the command:
   interactive Excel dialogs.
 - `POPPLER_UNAVAILABLE`: install Poppler or pass `--poppler-path`.
 - `OFFICE_TIMEOUT`: retry with a larger `--timeout`.
+- `WORD_CONVERSION_FAILED` / `EXCEL_CONVERSION_FAILED`: open the diagnostic
+  JSON and inspect `error_event.context.worker_result`,
+  `worker_stdout`, `worker_stderr`, and `office_process_cleanup` before retrying.
 - `VALIDATION_FAILED`: validate patches and task manifests before execution.
 
 ## Diagnostic Flow

@@ -25,6 +25,8 @@ from docrt.paths import (
     validate_output_path,
 )
 
+MAX_WORKER_TEXT_CHARS = 4000
+
 
 def docx_to_pdf(
     input_path: str | Path, output_path: str | Path | None, config: Config, run_id: str
@@ -85,6 +87,16 @@ def _run_worker(
             raise ValidationError(
                 ErrorCode.OFFICE_TIMEOUT,
                 f"{kind} COM conversion timed out after {timeout} seconds; cleanup={cleanup}",
+                context={
+                    "kind": kind,
+                    "input_path": str(source),
+                    "output_path": str(target),
+                    "timeout_seconds": timeout,
+                    "created_office_process_count": len(created),
+                    "office_process_cleanup": cleanup,
+                    "worker_stdout": _clip_text(exc.stdout),
+                    "worker_stderr": _clip_text(exc.stderr),
+                },
             ) from exc
 
         after = snapshot_office_processes()
@@ -103,6 +115,18 @@ def _run_worker(
                 str(
                     payload.get("error_message") or completed.stderr or f"{kind} conversion failed"
                 ),
+                context={
+                    "kind": kind,
+                    "input_path": str(source),
+                    "output_path": str(target),
+                    "worker_returncode": completed.returncode,
+                    "worker_stdout": _clip_text(completed.stdout),
+                    "worker_stderr": _clip_text(completed.stderr),
+                    "worker_result_json_path": str(result_json),
+                    "worker_result": payload,
+                    "created_office_process_count": len(created),
+                    "office_process_cleanup": cleanup,
+                },
             )
         return {
             "input_path": str(source),
@@ -146,3 +170,12 @@ def _read_worker_payload(path: Path) -> dict[str, object]:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return {"ok": False, "error_message": f"Worker result JSON is invalid: {exc}"}
+
+
+def _clip_text(value: object) -> str:
+    if value is None:
+        return ""
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+    if len(text) <= MAX_WORKER_TEXT_CHARS:
+        return text
+    return f"{text[:MAX_WORKER_TEXT_CHARS]}...[truncated {len(text) - MAX_WORKER_TEXT_CHARS} chars]"

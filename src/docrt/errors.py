@@ -60,7 +60,11 @@ def build_error_event(
     level: str = "error",
 ) -> dict[str, Any]:
     error_code = classify_exception(exc).value
-    sanitized_context = sanitize_context(context or {})
+    event_context = _exception_context(exc)
+    event_context.update(
+        {key: value for key, value in (context or {}).items() if value is not None}
+    )
+    sanitized_context = sanitize_context(event_context)
     frame = failure_frame(exc)
     resolved_module = module
     resolved_function = function
@@ -90,6 +94,11 @@ def build_error_event(
         },
         "recovery_actions": recovery_actions(error_code),
     }
+
+
+def _exception_context(exc: Exception) -> dict[str, Any]:
+    value = getattr(exc, "context", None)
+    return value if isinstance(value, dict) else {}
 
 
 def failure_frame(exc: Exception) -> dict[str, str] | None:

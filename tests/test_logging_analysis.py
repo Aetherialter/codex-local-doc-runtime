@@ -44,6 +44,24 @@ def test_run_operation_writes_error_event_and_diagnostic(tmp_path: Path, monkeyp
     assert Path(str(result.diagnostic_report_path)).exists()
 
 
+def test_error_event_includes_validation_error_context() -> None:
+    error = ValidationError(
+        ErrorCode.EXCEL_CONVERSION_FAILED,
+        "excel failed",
+        context={
+            "input_path": r"D:\project\python\secret\input.xlsx",
+            "worker_returncode": 1,
+            "worker_stderr": "COM repair prompt",
+        },
+    )
+
+    event = build_error_event(error, run_id="run", operation="xlsx-to-pdf")
+
+    assert event["context"]["input_path"]["name"] == "input.xlsx"
+    assert event["context"]["worker_returncode"] == 1
+    assert event["context"]["worker_stderr"] == "COM repair prompt"
+
+
 def test_classify_exception_maps_common_runtime_failures() -> None:
     assert classify_exception(ModuleNotFoundError("docx")) == ErrorCode.DEPENDENCY_MISSING
     assert classify_exception(FileNotFoundError("missing")) == ErrorCode.FILE_NOT_FOUND
