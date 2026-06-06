@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from docrt.config import Config
-from docrt.errors import build_error_event
+from docrt.errors import build_error_event, classify_exception
 from docrt.log_analysis import analyze_logs
 from docrt.logging import JsonlLogger
 from docrt.models import ErrorCode
@@ -44,6 +44,16 @@ def test_run_operation_writes_error_event_and_diagnostic(tmp_path: Path, monkeyp
     assert Path(str(result.diagnostic_report_path)).exists()
 
 
+def test_classify_exception_maps_common_runtime_failures() -> None:
+    assert classify_exception(ModuleNotFoundError("docx")) == ErrorCode.DEPENDENCY_MISSING
+    assert classify_exception(FileNotFoundError("missing")) == ErrorCode.FILE_NOT_FOUND
+    assert classify_exception(PermissionError("denied")) == ErrorCode.PERMISSION_DENIED
+    assert (
+        classify_exception(RuntimeError("PyMuPDF is unavailable")) == ErrorCode.DEPENDENCY_MISSING
+    )
+    assert classify_exception(ValueError("bad value")) == ErrorCode.VALIDATION_FAILED
+
+
 def test_analyze_logs_groups_errors_and_recommends_fixes(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
@@ -80,6 +90,123 @@ def test_analyze_logs_groups_errors_and_recommends_fixes(tmp_path: Path, monkeyp
     assert "D:\\project\\python\\secret" not in result["issues"][0]["sample_message"]
     assert result["recommendations"][0]["suggested_fix"]["files"]
     assert result["recommendations"][0]["affected_operations"] == ["patch-docx"]
+
+
+def test_analyze_logs_reads_legacy_run_log_failure_results(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    run_log = tmp_path / "logs" / "legacy.jsonl"
+    run_log.parent.mkdir(parents=True)
+    run_log.write_text(
+        json.dumps(
+            {
+                "run_id": "legacy",
+                "operation": "read-docx",
+                "event": "finished",
+                "result": {
+                    "ok": False,
+                    "operation": "read-docx",
+                    "run_id": "legacy",
+                    "ended_at": "2026-06-06T00:00:00.000Z",
+                    "input_path": r"D:\project\python\secret\missing.docx",
+                    "output_path": None,
+                    "backend": "python-docx",
+                    "error_code": "FILE_NOT_FOUND",
+                    "error_message": r"File not found: D:\project\python\secret\missing.docx",
+                    "exception_type": "ValidationError",
+                    "traceback": r"Traceback D:\project\python\secret\missing.docx",
+                    "recovery_actions": ["check path"],
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_logs(config, days=30, include_events=True)
+
+    assert result["scanned_error_events"] == 1
+    assert result["issues"][0]["issue_id"] == "FILE_NOT_FOUND:read-docx"
+    event = result["events"][0]
+    assert "D:\\project\\python\\secret" not in event["message"]
+    assert event["context"]["input_path"]["name"] == "missing.docx"
+
+
+def test_analyze_logs_deduplicates_error_and_run_log_events(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    error_event = {
+        "schema_version": "1.0",
+        "event_id": "run-error",
+        "run_id": "run",
+        "timestamp": "2026-06-06T00:00:00.000Z",
+        "level": "error",
+        "operation": "read-docx",
+        "module": "docrt.paths",
+        "function": "validate_input_path",
+        "error_code": "FILE_NOT_FOUND",
+        "exception_type": "ValidationError",
+        "message": "missing",
+    }
+    error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    run_log = tmp_path / "logs" / "run.jsonl"
+    error_log.parent.mkdir(parents=True)
+    error_log.write_text(json.dumps(error_event) + "\n", encoding="utf-8")
+    run_log.write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "operation": "read-docx",
+                "event": "finished",
+                "result": {
+                    "ok": False,
+                    "operation": "read-docx",
+                    "run_id": "run",
+                    "ended_at": "2026-06-06T00:00:00.000Z",
+                    "backend": "python",
+                    "error_code": "FILE_NOT_FOUND",
+                    "error_message": "missing",
+                    "exception_type": "ValidationError",
+                    "traceback": "",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_logs(config, days=30)
+
+    assert result["scanned_error_events"] == 1
+    assert result["issues"][0]["count"] == 1
+
+
+def test_path_validation_repair_advice_targets_path_boundaries(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    log_path = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-06-06T00:00:00.000Z",
+                "operation": "clean",
+                "module": "docrt.storage_ops",
+                "error_code": "PATH_VALIDATION_FAILED",
+                "exception_type": "ValidationError",
+                "message": "outside project root",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_logs(config, days=30)
+    recommendation = result["recommendations"][0]
+
+    assert recommendation["issue_id"] == "PATH_VALIDATION_FAILED:clean"
+    assert recommendation["risk"] == "low"
+    assert "src/docrt/storage_ops.py" in recommendation["suggested_fix"]["files"]
 
 
 def test_error_event_sanitizes_windows_paths() -> None:

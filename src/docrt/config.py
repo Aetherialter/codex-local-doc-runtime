@@ -6,6 +6,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from docrt.models import ErrorCode
+from docrt.paths import ValidationError
+
 
 @dataclass(frozen=True, slots=True)
 class Config:
@@ -99,7 +102,7 @@ def _env_values() -> dict[str, Any]:
         if os.getenv(env_name):
             values[key] = os.environ[env_name]
     if os.getenv("DOCRT_TIMEOUT_SECONDS"):
-        timeout = int(os.environ["DOCRT_TIMEOUT_SECONDS"])
+        timeout = _coerce_positive_int("DOCRT_TIMEOUT_SECONDS", os.environ["DOCRT_TIMEOUT_SECONDS"])
         values["default_timeout_seconds"] = timeout
         values["word_timeout_seconds"] = timeout
         values["excel_timeout_seconds"] = timeout
@@ -123,7 +126,23 @@ def _merge(config: Config, values: dict[str, Any]) -> Config:
 
 def _coerce_config_value(key: str, value: Any) -> Any:
     if key.endswith("_seconds") or key.endswith("_days"):
-        return int(value)
+        return _coerce_positive_int(key, value)
     if key == "allow_force_kill_office" and isinstance(value, str):
         return value.lower() in {"1", "true", "yes"}
     return value
+
+
+def _coerce_positive_int(key: str, value: Any) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            ErrorCode.VALIDATION_FAILED,
+            f"Config value {key} must be an integer, got {value!r}",
+        ) from exc
+    if number < 0:
+        raise ValidationError(
+            ErrorCode.VALIDATION_FAILED,
+            f"Config value {key} must be non-negative, got {number}",
+        )
+    return number

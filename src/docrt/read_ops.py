@@ -147,10 +147,18 @@ def read_xlsx(path: str | Path) -> dict[str, object]:
         content_blocks: list[dict[str, object]] = []
         tables: list[dict[str, object]] = []
         sheets: list[dict[str, object]] = []
+        warnings: list[str] = []
         for sheet in workbook.worksheets:
             rows = []
-            max_row = min(sheet.max_row or 0, 20)
-            max_col = min(sheet.max_column or 0, 20)
+            actual_max_row = sheet.max_row or 0
+            actual_max_col = sheet.max_column or 0
+            max_row = min(actual_max_row, 20)
+            max_col = min(actual_max_col, 20)
+            truncated = actual_max_row > max_row or actual_max_col > max_col
+            if truncated:
+                warnings.append(
+                    f"Sheet {sheet.title!r} preview is truncated to 20 rows x 20 columns."
+                )
             for row in sheet.iter_rows(
                 min_row=1,
                 max_row=max_row,
@@ -182,6 +190,8 @@ def read_xlsx(path: str | Path) -> dict[str, object]:
                     "name": sheet.title,
                     "max_row": sheet.max_row,
                     "max_column": sheet.max_column,
+                    "preview_range": f"A1:{end_cell}",
+                    "preview_truncated": truncated,
                     "merged_cells": [str(rng) for rng in sheet.merged_cells.ranges],
                 }
             )
@@ -195,7 +205,7 @@ def read_xlsx(path: str | Path) -> dict[str, object]:
             },
             "content_blocks": content_blocks,
             "tables": tables,
-            "warnings": [],
+            "warnings": warnings,
         }
     finally:
         workbook.close()

@@ -34,6 +34,31 @@ def test_config_load_coerces_legacy_numeric_strings(
     assert config.log_retention_days == 7
 
 
+def test_config_load_rejects_invalid_numeric_strings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "docrt.config.json").write_text(
+        json.dumps({"log_retention_days": "soon"}), encoding="utf-8"
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        Config.load(project_root=tmp_path)
+
+    assert exc_info.value.error_code == ErrorCode.VALIDATION_FAILED
+    assert "log_retention_days" in str(exc_info.value)
+
+
+def test_config_load_rejects_invalid_timeout_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DOCRT_TIMEOUT_SECONDS", "soon")
+
+    with pytest.raises(ValidationError) as exc_info:
+        Config.load()
+
+    assert exc_info.value.error_code == ErrorCode.VALIDATION_FAILED
+    assert "DOCRT_TIMEOUT_SECONDS" in str(exc_info.value)
+
+
 def test_normalize_path_is_absolute(tmp_path):
     path = normalize_path(tmp_path / "file.txt")
     assert path.is_absolute()

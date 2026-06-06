@@ -6,6 +6,7 @@ from pathlib import Path
 
 from docrt.config import Config
 from docrt.jobs import job_status, start_job
+from docrt.log_analysis import analyze_logs
 
 
 def test_start_job_rejects_unsupported_task(tmp_path: Path, monkeypatch) -> None:
@@ -74,6 +75,45 @@ def test_start_job_runs_clean_retention_as_dry_run(tmp_path: Path, monkeypatch) 
     assert payload["data"]["retention"] is True
     assert payload["data"]["dry_run"] is True
     assert log_path.exists()
+
+
+def test_background_job_failure_writes_error_log_and_diagnostic(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "docrt.config.json").write_text(
+        json.dumps({"logs_dir": "../outside-logs"}), encoding="utf-8"
+    )
+    config = Config(
+        outputs_dir="outputs",
+        logs_dir="logs",
+        work_dir="work",
+        diagnostics_dir="outputs/diagnostics",
+        state_dir="state",
+    )
+
+    started = start_job(config, "clean-retention")
+    job_id = str(started["job_id"])
+    final = _wait_for_job(config, job_id)
+    result_path = Path(final["job"]["result_path"])
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+
+    assert final["job"]["status"] == "failed"
+    assert final["job"]["error_code"] == "PATH_VALIDATION_FAILED"
+    assert payload["ok"] is False
+    assert payload["diagnostic_report_path"]
+    assert Path(str(payload["diagnostic_report_path"])).exists()
+
+    error_logs = list((tmp_path.parent / "outside-logs" / "errors").glob("*.error.jsonl"))
+    assert len(error_logs) == 1
+    event = json.loads(error_logs[0].read_text(encoding="utf-8").splitlines()[0])
+    assert event["operation"] == "job:clean-retention"
+    assert event["error_code"] == "PATH_VALIDATION_FAILED"
+    assert event["context"]["task"] == "clean-retention"
+    assert "status_path" in event["context"]
+
+    analysis = analyze_logs(Config(logs_dir="../outside-logs"), days=30)
+    assert analysis["issues"][0]["issue_id"] == "PATH_VALIDATION_FAILED:job:clean-retention"
 
 
 def _wait_for_job(config: Config, job_id: str) -> dict[str, object]:

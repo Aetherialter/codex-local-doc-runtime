@@ -6,8 +6,10 @@ import traceback
 from pathlib import Path
 
 from docrt.config import Config
+from docrt.errors import build_error_event, classify_exception
 from docrt.jsonutil import dump_file
 from docrt.log_analysis import analyze_logs
+from docrt.logging import error_log_path, try_write_diagnostic, write_jsonl_event
 from docrt.maintenance import maintenance_report
 from docrt.repair_plan import repair_plan
 from docrt.storage_ops import clean
@@ -52,17 +54,54 @@ def main() -> int:
         _update_status(status_path, status="succeeded", result_path=str(result_path))
         return 0
     except Exception as exc:
+        error_event = build_error_event(
+            exc,
+            run_id=args.job_id,
+            operation=f"job:{args.task}",
+            module="docrt.job_worker",
+            function="main",
+            context={
+                "job_id": args.job_id,
+                "task": args.task,
+                "status_path": str(status_path),
+                "result_path": str(result_path),
+                "days": args.days,
+                "yes": args.yes,
+            },
+        )
+        error_log_status = write_jsonl_event(error_log_path(config.logs_path), error_event)
+        diagnostic_path = config.diagnostics_path / f"{args.job_id}.job.diagnostic.json"
         result = {
             "ok": False,
             "job_id": args.job_id,
             "task": args.task,
             "finished_at": utc_now_iso(),
+            "error_code": classify_exception(exc).value,
             "error_message": str(exc),
             "exception_type": type(exc).__name__,
             "traceback": traceback.format_exc(),
+            "error_event_log": error_log_status,
+            "diagnostic_report_path": str(diagnostic_path),
         }
+        diagnostic_status = try_write_diagnostic(
+            diagnostic_path,
+            {
+                "result": result,
+                "error_event": error_event,
+                "generated_at": utc_now_iso(),
+            },
+        )
+        if not diagnostic_status["ok"]:
+            result["diagnostic_report_path"] = None
+            result["diagnostic_write"] = diagnostic_status
         dump_file(result_path, result)
-        _update_status(status_path, status="failed", result_path=str(result_path))
+        _update_status(
+            status_path,
+            status="failed",
+            result_path=str(result_path),
+            error_code=result["error_code"],
+            diagnostic_report_path=result["diagnostic_report_path"],
+        )
         return 1
 
 

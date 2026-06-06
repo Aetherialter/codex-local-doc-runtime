@@ -42,6 +42,26 @@ REPAIR_RULES: dict[str, dict[str, object]] = {
             "uv run ruff check .",
         ],
     },
+    "PATH_VALIDATION_FAILED": {
+        "severity": "medium",
+        "risk": "low",
+        "likely_cause": (
+            "A configured runtime directory or requested output path is outside the project root."
+        ),
+        "summary": (
+            "Validate configured directories and document safe cleanup/output path boundaries."
+        ),
+        "files": [
+            "src/docrt/storage_ops.py",
+            "src/docrt/paths.py",
+            "src/docrt/config.py",
+            "docs/storage-management.md",
+        ],
+        "validation": [
+            "uv run pytest tests\\test_config_paths.py tests\\test_runtime_features.py",
+            "uv run ruff check .",
+        ],
+    },
     "OFFICE_TIMEOUT": {
         "severity": "high",
         "risk": "medium",

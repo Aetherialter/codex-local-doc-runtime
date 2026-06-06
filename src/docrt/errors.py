@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sys
 import traceback as tb
 from pathlib import Path
+from subprocess import TimeoutExpired
 from typing import Any
 
 from docrt import core_bridge
@@ -21,6 +23,29 @@ USER_HOME = str(Path.home())
 def classify_exception(exc: Exception) -> ErrorCode:
     if isinstance(exc, ValidationError):
         return exc.error_code
+    if isinstance(exc, (ModuleNotFoundError, ImportError)):
+        return ErrorCode.DEPENDENCY_MISSING
+    if isinstance(exc, FileNotFoundError):
+        return ErrorCode.FILE_NOT_FOUND
+    if isinstance(exc, PermissionError):
+        return ErrorCode.PERMISSION_DENIED
+    if isinstance(exc, TimeoutExpired | TimeoutError):
+        return ErrorCode.OFFICE_TIMEOUT
+    if isinstance(exc, json.JSONDecodeError | ValueError):
+        return ErrorCode.VALIDATION_FAILED
+    if isinstance(exc, RuntimeError):
+        message = str(exc).casefold()
+        if any(
+            token in message
+            for token in (
+                "python-docx is unavailable",
+                "openpyxl is unavailable",
+                "pymupdf is unavailable",
+                "pywin32",
+                "win32com",
+            )
+        ):
+            return ErrorCode.DEPENDENCY_MISSING
     return ErrorCode.UNKNOWN_ERROR
 
 

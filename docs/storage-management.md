@@ -66,6 +66,8 @@ uv run docrt job-status <job-id>
 ```
 
 The background command is also a dry-run unless `--yes` is provided.
+If a background cleanup job fails, inspect the returned `result_path`; the
+failure is also recorded under `logs/errors/` and `outputs/diagnostics/`.
 
 `clean` refuses to delete targets outside the project root and does not follow
 symlinked files.

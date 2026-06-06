@@ -79,6 +79,23 @@ def test_read_xlsx_protocol(tmp_path: Path):
     assert result["document_type"] == "xlsx"
     assert result["metadata"]["sheet_count"] == 1
     assert result["content_blocks"][0]["location"]["sheet"] == "Summary"
+    assert result["metadata"]["sheets"][0]["preview_truncated"] is False
+
+
+def test_read_xlsx_reports_preview_truncation(tmp_path: Path):
+    path = tmp_path / "large.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Large"
+    sheet.cell(25, 25).value = "outside preview"
+    workbook.save(path)
+
+    result = read_xlsx(path)
+
+    sheet_info = result["metadata"]["sheets"][0]
+    assert sheet_info["preview_range"] == "A1:T20"
+    assert sheet_info["preview_truncated"] is True
+    assert result["warnings"] == ["Sheet 'Large' preview is truncated to 20 rows x 20 columns."]
 
 
 def test_patch_docx_and_verify(tmp_path: Path):

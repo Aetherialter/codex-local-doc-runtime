@@ -283,7 +283,11 @@ DOCX 格式保留采用尽力策略：`replace_text` 在匹配文本位于单个
 首个 run 的基础格式。复杂跨 run 的替换仍可能改变局部行内样式，排版敏感场景应在
 patch 后执行 `compare-docx`。
 
-XLSX 当前支持：
+`read-xlsx` 默认预览每个 sheet 的前 20 行 x 20 列，并在 JSON 中通过
+`metadata.sheets[].preview_truncated` 和 `warnings` 标记是否被截断。需要完整数据时，
+应使用明确的 range/task 设计，避免把预览结果误认为全量 workbook。
+
+XLSX patch 当前支持：
 
 - `set_cell`
 - `set_range_values`

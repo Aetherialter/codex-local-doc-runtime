@@ -78,5 +78,10 @@ uv run docrt job-status <job-id>
 `job-start clean-retention` is a background dry-run by default. Add `--yes`
 only after the retention cleanup plan is acceptable.
 
+Background task failures are written to the same `logs/errors/*.error.jsonl`
+stream and `outputs/diagnostics/*.job.diagnostic.json` files as foreground CLI
+failures. The next `analyze-logs` or `repair-plan` run can therefore include
+background failures in the repair backlog.
+
 Document editing and conversion remain foreground operations in this preview so
 users can see the exact JSON result before trusting the output file.
