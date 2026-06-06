@@ -61,6 +61,17 @@ Supported DOCX operations:
 `replace_heading` targets paragraphs whose style is a heading style. Use
 `heading_text`, `heading_style`, or both. `match` can be `exact` or `contains`.
 
+DOCX formatting is preserved on a best-effort basis:
+
+- `replace_text` preserves the matching run formatting when the matched text is
+  contained in a single run.
+- `replace_paragraph` and `replace_heading` preserve the paragraph style and the
+  first run formatting while rewriting the paragraph text.
+- `replace_table_cell` preserves the first paragraph style and first run
+  formatting in the target cell.
+- Complex multi-run replacements can still change inline formatting. Use
+  `compare-docx` after patching when layout or inline styling matters.
+
 ## XLSX Patch
 
 Command:

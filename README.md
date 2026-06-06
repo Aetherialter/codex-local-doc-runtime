@@ -266,6 +266,11 @@ DOCX 当前支持：
 - `replace_heading`：按标题文本、标题样式或两者组合替换
 - `replace_table_cell`：按表格、行、列定位替换单元格
 
+DOCX 格式保留采用尽力策略：`replace_text` 在匹配文本位于单个 run 时保留该 run
+格式；`replace_paragraph`、`replace_heading` 和 `replace_table_cell` 会保留段落样式和
+首个 run 的基础格式。复杂跨 run 的替换仍可能改变局部行内样式，排版敏感场景应在
+patch 后执行 `compare-docx`。
+
 XLSX 当前支持：
 
 - `set_cell`

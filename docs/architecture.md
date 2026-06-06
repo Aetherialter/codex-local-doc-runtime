@@ -24,6 +24,13 @@ machine-readable results instead of interactive desktop workflows.
 - `docrt.docx_ops`: DOCX inspection through `python-docx`.
 - `docrt.pdf_ops`: PDF inspection and rendering through PyMuPDF.
 - `docrt.xlsx_ops`: XLSX inspection through `openpyxl` and `pandas`.
+- `docrt.docx_patch`: DOCX patch operations and best-effort run-aware format
+  preservation.
+- `docrt.xlsx_patch`: XLSX patch operations.
+- `docrt.patch_common`: shared patch loading, validation, summary, and helper
+  functions.
+- `docrt.patch_ops`: backward-compatible facade that exports `patch_docx` and
+  `patch_xlsx`.
 - `docrt.office_convert`: parent-side Office conversion orchestration.
 - `docrt.office_worker`: subprocess entrypoint for Word and Excel COM work.
 - `docrt.office_process`: Office process snapshots and cleanup diagnostics.
