@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -16,15 +15,24 @@ from docrt.cache_ops import (
     index,
     search,
 )
+from docrt.cli_support import (
+    DryRunOpt,
+    ExpectOpt,
+    ForceKillOpt,
+    OutputOpt,
+    PopplerOpt,
+    TimeoutOpt,
+    emit_result,
+    load_cli_config,
+)
 from docrt.config import Config
 from docrt.config_cli import config_init, config_set, config_show
 from docrt.doctor import doctor_report
 from docrt.docx_ops import inspect_docx
 from docrt.jobs import job_status, start_job
-from docrt.jsonutil import dump_file, dumps
+from docrt.jsonutil import dump_file
 from docrt.log_analysis import analyze_logs, recent_errors
 from docrt.maintenance import maintenance_report
-from docrt.models import exit_code_for_result
 from docrt.office_convert import docx_to_pdf, xlsx_to_pdf
 from docrt.patch_ops import patch_docx, patch_xlsx
 from docrt.paths import (
@@ -49,27 +57,12 @@ config_app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(config_app, name="config")
 
 
-PopplerOpt = Annotated[str | None, typer.Option("--poppler-path")]
-TimeoutOpt = Annotated[int | None, typer.Option("--timeout", min=1)]
-ForceKillOpt = Annotated[bool, typer.Option("--force-kill-office")]
-OutputOpt = Annotated[Path | None, typer.Option("--output", "-o")]
-DryRunOpt = Annotated[bool, typer.Option("--dry-run")]
-ExpectOpt = Annotated[Path | None, typer.Option("--expect")]
-
-
 def _config(poppler_path: str | None, timeout: int | None, force_kill_office: bool) -> Config:
-    return Config.load(
-        poppler_path=poppler_path,
-        timeout=timeout,
-        force_kill_office=force_kill_office,
-    )
+    return load_cli_config(poppler_path, timeout, force_kill_office)
 
 
 def _emit(result) -> None:
-    text = dumps(result.to_dict(), pretty=True) + "\n"
-    sys.stdout.buffer.write(text.encode("utf-8", errors="replace"))
-    sys.stdout.buffer.flush()
-    raise typer.Exit(int(exit_code_for_result(result)))
+    emit_result(result)
 
 
 @app.command()
