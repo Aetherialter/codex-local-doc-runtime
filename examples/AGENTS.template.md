@@ -50,6 +50,7 @@ uv run docrt fingerprint <path>
 uv run docrt batch-fingerprint <path> [<path> ...]
 uv run docrt storage-report
 uv run docrt clean --logs --work --cache
+uv run docrt clean --retention
 uv run docrt analyze-logs --days 30
 uv run docrt repair-plan --days 30
 uv run docrt maintenance

@@ -228,6 +228,21 @@ def test_clean_command_omits_file_list_by_default(tmp_path: Path, monkeypatch):
     assert payload["data"]["files_omitted"] >= 1
 
 
+def test_clean_retention_command_uses_default_targets(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    log_path = tmp_path / "logs" / "old.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["clean", "--retention", "--verbose"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["retention"] is True
+    assert payload["data"]["selected_targets"] == ["logs", "diagnostics", "cache"]
+
+
 def test_analyze_logs_command_outputs_recommendations(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     error_log = tmp_path / "logs" / "errors" / "2026-06-06.error.jsonl"

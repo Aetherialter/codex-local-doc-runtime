@@ -28,6 +28,7 @@ def clean(
     older_than_days: int | None = None,
     yes: bool = False,
     include_files: bool = True,
+    retention: bool = False,
     logs: bool = False,
     outputs: bool = False,
     work: bool = False,
@@ -46,19 +47,41 @@ def clean(
         dist=dist,
         all_targets=all_targets,
     )
-    cutoff = (
-        datetime.now(UTC) - timedelta(days=older_than_days) if older_than_days is not None else None
-    )
+    retention_days = _retention_days_by_target(config) if retention else {}
+    if retention and not selected:
+        selected = _retention_targets(config)
+    cutoff = _cutoff_for_days(older_than_days)
     files = []
     seen_files: set[Path] = set()
+    policy: list[dict[str, object]] = []
     for target in selected:
         _ensure_safe_target(target.path)
+        target_days = retention_days.get(target.name)
+        if retention and target_days is None and older_than_days is None:
+            policy.append(
+                {
+                    "target": target.name,
+                    "older_than_days": None,
+                    "skipped": True,
+                    "reason": "no_retention_policy",
+                }
+            )
+            continue
+        target_cutoff = _cutoff_for_days(target_days) if target_days is not None else cutoff
+        effective_days = target_days if target_days is not None else older_than_days
+        policy.append(
+            {
+                "target": target.name,
+                "older_than_days": effective_days,
+                "skipped": False,
+            }
+        )
         for path in _iter_files(target.path):
             resolved_path = path.resolve()
             if resolved_path in seen_files:
                 continue
             seen_files.add(resolved_path)
-            if cutoff and _mtime(path) >= cutoff:
+            if target_cutoff and _mtime(path) >= target_cutoff:
                 continue
             files.append({"target": target.name, "path": str(path), "bytes": path.stat().st_size})
     deleted = []
@@ -70,7 +93,9 @@ def clean(
         _remove_empty_dirs(selected)
     return {
         "dry_run": not yes,
+        "retention": retention,
         "older_than_days": older_than_days,
+        "policy": policy,
         "selected_targets": [target.name for target in selected],
         "planned_count": len(files),
         "planned_bytes": sum(int(item["bytes"]) for item in files),
@@ -120,6 +145,30 @@ def _selected_targets(
         if enabled
     }
     return _dedupe_targets([target for target in targets if target.name in selected_names])
+
+
+def _retention_targets(config: Config) -> list[CleanTarget]:
+    targets_by_name = {target.name: target for target in _all_targets(config)}
+    return _dedupe_targets(
+        [
+            targets_by_name["logs"],
+            targets_by_name["diagnostics"],
+            targets_by_name["cache"],
+        ]
+    )
+
+
+def _retention_days_by_target(config: Config) -> dict[str, int]:
+    return {
+        "logs": config.log_retention_days,
+        "work": config.cache_retention_days,
+        "diagnostics": config.diagnostic_retention_days,
+        "cache": config.cache_retention_days,
+    }
+
+
+def _cutoff_for_days(days: int | None) -> datetime | None:
+    return datetime.now(UTC) - timedelta(days=days) if days is not None else None
 
 
 def _dedupe_targets(targets: list[CleanTarget]) -> list[CleanTarget]:

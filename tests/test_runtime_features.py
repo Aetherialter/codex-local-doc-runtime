@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+from time import time
 
 import fitz
 import pytest
@@ -149,6 +151,76 @@ def test_clean_all_deduplicates_nested_targets(
     assert planned_paths.count(str(cache_path)) == 1
 
 
+def test_clean_retention_uses_configured_target_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(
+        outputs_dir="outputs",
+        logs_dir="logs",
+        work_dir="work",
+        diagnostics_dir="outputs/diagnostics",
+        log_retention_days=7,
+        diagnostic_retention_days=30,
+        cache_retention_days=14,
+    )
+    old_log = tmp_path / "logs" / "old.jsonl"
+    fresh_log = tmp_path / "logs" / "fresh.jsonl"
+    old_diagnostic = tmp_path / "outputs" / "diagnostics" / "old.json"
+    old_cache = tmp_path / "work" / "cache" / "old.json"
+    output = tmp_path / "outputs" / "keep.docx"
+    for path in [old_log, fresh_log, old_diagnostic, old_cache, output]:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+
+    old_mtime = time() - 40 * 24 * 60 * 60
+    fresh_mtime = time()
+    for path in [old_log, old_diagnostic, old_cache, output]:
+        os.utime(path, (old_mtime, old_mtime))
+    os.utime(fresh_log, (fresh_mtime, fresh_mtime))
+
+    planned = clean(config, retention=True)
+
+    planned_paths = {item["path"] for item in planned["files"]}
+    assert planned["dry_run"] is True
+    assert planned["retention"] is True
+    assert str(old_log) in planned_paths
+    assert str(old_diagnostic) in planned_paths
+    assert str(old_cache) in planned_paths
+    assert str(fresh_log) not in planned_paths
+    assert str(output) not in planned_paths
+    assert {item["target"] for item in planned["policy"]} == {
+        "logs",
+        "diagnostics",
+        "cache",
+    }
+
+
+def test_clean_retention_skips_targets_without_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = Config(outputs_dir="outputs", logs_dir="logs", work_dir="work")
+    output = tmp_path / "outputs" / "keep.docx"
+    output.parent.mkdir()
+    output.write_text("{}", encoding="utf-8")
+    old_mtime = time() - 40 * 24 * 60 * 60
+    os.utime(output, (old_mtime, old_mtime))
+
+    planned = clean(config, retention=True, outputs=True)
+
+    assert planned["planned_count"] == 0
+    assert planned["files"] == []
+    assert planned["policy"] == [
+        {
+            "target": "outputs",
+            "older_than_days": None,
+            "skipped": True,
+            "reason": "no_retention_policy",
+        }
+    ]
+
+
 def test_config_set_supports_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
@@ -156,6 +228,18 @@ def test_config_set_supports_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     assert result["key"] == "outputs_dir"
     assert Config.load(project_root=tmp_path).outputs_dir == "custom-outputs"
+
+
+def test_config_set_coerces_retention_aliases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = config_set("log_retention", "7")
+
+    assert result["key"] == "log_retention_days"
+    assert result["value"] == 7
+    assert Config.load(project_root=tmp_path).log_retention_days == 7
 
 
 def test_agent_config_contains_codex_runtime_fragment(

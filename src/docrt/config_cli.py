@@ -16,6 +16,9 @@ KEY_ALIASES = {
     "logs": "logs_dir",
     "work": "work_dir",
     "diagnostics": "diagnostics_dir",
+    "log_retention": "log_retention_days",
+    "diagnostic_retention": "diagnostic_retention_days",
+    "cache_retention": "cache_retention_days",
     "poppler": "poppler_path",
     "force_kill_office": "allow_force_kill_office",
 }
@@ -61,7 +64,7 @@ def _coerce_value(key: str, value: str) -> object:
     if key == "default_timeout_seconds":
         timeout = int(value)
         return timeout
-    if key.endswith("_seconds"):
+    if key.endswith("_seconds") or key.endswith("_days"):
         return int(value)
     if key == "allow_force_kill_office":
         return value.lower() in {"1", "true", "yes"}

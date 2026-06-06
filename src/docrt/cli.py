@@ -798,6 +798,7 @@ def storage_report_cmd(
 @app.command("clean")
 def clean_cmd(
     older_than: Annotated[int | None, typer.Option("--older-than", min=0)] = None,
+    retention: Annotated[bool, typer.Option("--retention")] = False,
     yes: Annotated[bool, typer.Option("--yes")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
     logs: Annotated[bool, typer.Option("--logs")] = False,
@@ -819,6 +820,7 @@ def clean_cmd(
             older_than_days=older_than,
             yes=yes,
             include_files=verbose,
+            retention=retention,
             logs=logs,
             outputs=outputs,
             work=work,

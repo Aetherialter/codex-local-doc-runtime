@@ -317,25 +317,32 @@ uv run docrt storage-report
 
 ```powershell
 uv run docrt clean --logs --work --cache
+uv run docrt clean --retention
 ```
 
 默认只输出摘要，避免长期使用后刷出大量文件路径。如果需要查看具体文件列表：
 
 ```powershell
 uv run docrt clean --logs --work --cache --verbose
+uv run docrt clean --retention --verbose
 ```
 
 确认删除：
 
 ```powershell
 uv run docrt clean --logs --work --cache --yes
+uv run docrt clean --retention --yes
 ```
 
-按时间清理：
+按时间手动清理：
 
 ```powershell
 uv run docrt clean --logs --work --cache --older-than 14 --yes
 ```
+
+`--retention` 会使用 `docrt.config.json` 中的 `log_retention_days`、
+`diagnostic_retention_days` 和 `cache_retention_days`。默认只覆盖 logs、
+diagnostics 和 cache，不会自动清理 outputs 里的导出文件。
 
 清理 outputs 时要更谨慎，因为里面可能有你希望保留的导出文件：
 
@@ -447,7 +454,7 @@ uv run docrt doctor
 uv run docrt doctor --agent
 uv run docrt agent-config
 uv run docrt storage-report
-uv run docrt clean --logs --work --cache
+uv run docrt clean --retention
 uv run docrt analyze-logs
 uv run docrt repair-plan
 uv run docrt maintenance

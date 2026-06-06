@@ -115,5 +115,15 @@ def _env_values() -> dict[str, Any]:
 
 def _merge(config: Config, values: dict[str, Any]) -> Config:
     allowed = set(Config.__dataclass_fields__)
-    clean = {key: value for key, value in values.items() if key in allowed}
+    clean = {
+        _key: _coerce_config_value(_key, value) for _key, value in values.items() if _key in allowed
+    }
     return replace(config, **clean)
+
+
+def _coerce_config_value(key: str, value: Any) -> Any:
+    if key.endswith("_seconds") or key.endswith("_days"):
+        return int(value)
+    if key == "allow_force_kill_office" and isinstance(value, str):
+        return value.lower() in {"1", "true", "yes"}
+    return value

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,19 @@ def test_config_cli_timeout_override():
     assert config.word_timeout_seconds == 9
     assert config.excel_timeout_seconds == 9
     assert config.poppler_timeout_seconds == 9
+
+
+def test_config_load_coerces_legacy_numeric_strings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "docrt.config.json").write_text(
+        json.dumps({"log_retention_days": "7"}), encoding="utf-8"
+    )
+
+    config = Config.load(project_root=tmp_path)
+
+    assert config.log_retention_days == 7
 
 
 def test_normalize_path_is_absolute(tmp_path):

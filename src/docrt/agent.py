@@ -93,7 +93,8 @@ def _commands() -> dict[str, list[str] | str]:
         "storage": [
             "uv run docrt storage-report",
             "uv run docrt clean --logs --work --cache",
-            "uv run docrt clean --logs --work --cache --older-than 14 --yes",
+            "uv run docrt clean --retention",
+            "uv run docrt clean --retention --yes",
         ],
         "maintenance": [
             "uv run docrt analyze-logs --days 30",
