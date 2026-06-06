@@ -56,9 +56,9 @@ risk, target files, validation commands, and whether the fix requires human
 confirmation. It writes `state/repair-plan.latest.json` by default and does not
 auto-apply code changes.
 
-`maintenance` stores the latest runtime and log-analysis summaries in `state/`
-so the next development pass can start from recent evidence instead of relying
-on memory.
+`maintenance` stores the latest runtime, log-analysis, and repair-plan
+summaries in `state/` so the next development pass can start from recent
+evidence instead of relying on memory.
 
 ## Background Maintenance Jobs
 

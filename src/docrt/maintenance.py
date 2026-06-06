@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from docrt.config import Config
 from docrt.log_analysis import analyze_logs
+from docrt.repair_plan import repair_plan
 from docrt.state import runtime_state, write_state
 from docrt.storage_ops import storage_report
 
@@ -9,15 +10,18 @@ from docrt.storage_ops import storage_report
 def maintenance_report(config: Config, *, analyze_days: int = 7) -> dict[str, object]:
     storage = storage_report(config)
     analysis = analyze_logs(config, days=analyze_days, limit=200)
+    plan = repair_plan(config, days=analyze_days, limit=200, persist=False)
     health = runtime_state(config)
     state_paths = {
         "runtime_state": str(write_state(config, "runtime-state", health)),
         "log_analysis": str(write_state(config, "log-analysis.latest", analysis)),
+        "repair_plan": str(write_state(config, "repair-plan.latest", plan)),
     }
     return {
         "health": health,
         "storage": storage,
         "log_analysis": analysis,
+        "repair_plan": plan,
         "state_paths": state_paths,
         "recommended_actions": _recommended_actions(storage, analysis),
     }

@@ -53,6 +53,8 @@ def test_maintenance_report_writes_state_files(tmp_path: Path, monkeypatch) -> N
     result = maintenance_report(config, analyze_days=30)
 
     assert result["log_analysis"]["issue_count"] == 1
+    assert result["repair_plan"]["item_count"] == 1
     assert Path(result["state_paths"]["runtime_state"]).exists()
     assert Path(result["state_paths"]["log_analysis"]).exists()
+    assert Path(result["state_paths"]["repair_plan"]).exists()
     assert result["recommended_actions"]
