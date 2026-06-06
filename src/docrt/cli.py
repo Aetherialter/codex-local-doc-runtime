@@ -21,6 +21,7 @@ from docrt.doctor import doctor_report
 from docrt.docx_ops import inspect_docx
 from docrt.jsonutil import dump_file, dumps
 from docrt.log_analysis import analyze_logs, recent_errors
+from docrt.maintenance import maintenance_report
 from docrt.models import exit_code_for_result
 from docrt.office_convert import docx_to_pdf, xlsx_to_pdf
 from docrt.patch_ops import patch_docx, patch_xlsx
@@ -870,6 +871,23 @@ def recent_errors_cmd(
         lambda _run_id, cfg, _logger: recent_errors(cfg, limit=limit),
         config=config,
         backend="log-analysis",
+    )
+    _emit(result)
+
+
+@app.command("maintenance")
+def maintenance_cmd(
+    analyze_days: Annotated[int, typer.Option("--analyze-days", min=1)] = 7,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "maintenance",
+        lambda _run_id, cfg, _logger: maintenance_report(cfg, analyze_days=analyze_days),
+        config=config,
+        backend="maintenance",
     )
     _emit(result)
 

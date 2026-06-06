@@ -127,6 +127,7 @@ def test_storage_report_and_clean_dry_run(tmp_path: Path, monkeypatch: pytest.Mo
     planned = clean(config, logs=True)
 
     logs_target = next(target for target in report["targets"] if target["name"] == "logs")
+    assert any(target["name"] == "state" for target in report["targets"])
     assert logs_target["oldest_file_time"] is not None
     assert planned["dry_run"] is True
     assert planned["planned_count"] == 1

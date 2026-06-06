@@ -7,6 +7,7 @@
 - `outputs/diagnostics/`
 - `work/`
 - `work/cache/`
+- `state/`
 - `dist/`
 
 Inspect usage:
@@ -17,6 +18,13 @@ uv run docrt storage-report
 
 The report includes each target path, existence, file count, byte size, and
 `oldest_file_time` so agents can decide whether age-based cleanup is safe.
+
+`maintenance` combines storage reporting with recent error analysis and writes
+small state snapshots under `state/`:
+
+```powershell
+uv run docrt maintenance
+```
 
 Plan cleanup without deleting:
 

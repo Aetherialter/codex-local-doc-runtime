@@ -28,6 +28,7 @@ env/
 logs/
 outputs/
 work/
+state/
 
 # Local configuration
 docrt.config.json

@@ -19,6 +19,10 @@ class Config:
     logs_dir: str = "logs"
     work_dir: str = "work"
     diagnostics_dir: str = "outputs/diagnostics"
+    state_dir: str = "state"
+    log_retention_days: int = 14
+    diagnostic_retention_days: int = 30
+    cache_retention_days: int = 14
 
     @classmethod
     def load(
@@ -66,6 +70,10 @@ class Config:
     def diagnostics_path(self) -> Path:
         return self.path_for(self.diagnostics_dir)
 
+    @property
+    def state_path(self) -> Path:
+        return self.path_for(self.state_dir)
+
 
 def _read_config_file(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -84,6 +92,7 @@ def _env_values() -> dict[str, Any]:
         "DOCRT_LOGS_DIR": "logs_dir",
         "DOCRT_WORK_DIR": "work_dir",
         "DOCRT_DIAGNOSTICS_DIR": "diagnostics_dir",
+        "DOCRT_STATE_DIR": "state_dir",
         "POPPLER_PATH": "poppler_path",
     }
     for env_name, key in env_map.items():

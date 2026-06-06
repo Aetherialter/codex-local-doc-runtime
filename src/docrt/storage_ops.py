@@ -88,6 +88,7 @@ def _all_targets(config: Config) -> list[CleanTarget]:
         CleanTarget("work", config.work_path),
         CleanTarget("diagnostics", config.diagnostics_path),
         CleanTarget("cache", config.work_path / "cache"),
+        CleanTarget("state", config.state_path),
         CleanTarget("dist", Path.cwd() / "dist"),
     ]
 

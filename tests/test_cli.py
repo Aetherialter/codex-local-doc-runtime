@@ -179,3 +179,15 @@ def test_analyze_logs_command_outputs_recommendations(tmp_path: Path, monkeypatc
     assert payload["operation"] == "analyze-logs"
     assert payload["data"]["issue_count"] == 1
     assert payload["data"]["recommendations"]
+
+
+def test_maintenance_command_writes_state(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["maintenance"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["operation"] == "maintenance"
+    assert Path(payload["data"]["state_paths"]["runtime_state"]).exists()
