@@ -19,6 +19,9 @@ before changing the command:
   interactive Word dialogs.
 - `EXCEL_COM_UNAVAILABLE`: install Microsoft Excel desktop edition and close
   interactive Excel dialogs.
+- `docx-to-pdf` and `xlsx-to-pdf` run a lightweight Office COM dispatch
+  preflight before opening the input document. If this fails, run
+  `uv run docrt doctor --agent --office-smoke` before retrying conversion.
 - `POPPLER_UNAVAILABLE`: install Poppler or pass `--poppler-path`.
 - `OFFICE_TIMEOUT`: retry with a larger `--timeout`.
 - `WORD_CONVERSION_FAILED` / `EXCEL_CONVERSION_FAILED`: open the diagnostic

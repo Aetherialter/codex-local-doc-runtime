@@ -11,6 +11,7 @@ from pathlib import Path
 
 from docrt.config import Config
 from docrt.models import ErrorCode
+from docrt.office_com import check_excel_com, check_word_com
 from docrt.office_process import (
     new_office_processes,
     snapshot_office_processes,
@@ -31,6 +32,7 @@ MAX_WORKER_TEXT_CHARS = 4000
 def docx_to_pdf(
     input_path: str | Path, output_path: str | Path | None, config: Config, run_id: str
 ) -> dict[str, object]:
+    _ensure_office_available("word")
     source = validate_input_path(input_path, {".docx"})
     ensure_unlocked_for_read(source)
     target = validate_output_path(output_path or default_pdf_output(source, config.outputs_path))
@@ -41,6 +43,7 @@ def docx_to_pdf(
 def xlsx_to_pdf(
     input_path: str | Path, output_path: str | Path | None, config: Config, run_id: str
 ) -> dict[str, object]:
+    _ensure_office_available("excel")
     source = validate_input_path(input_path, {".xlsx"})
     ensure_unlocked_for_read(source)
     target = validate_output_path(output_path or default_pdf_output(source, config.outputs_path))
@@ -179,3 +182,25 @@ def _clip_text(value: object) -> str:
     if len(text) <= MAX_WORKER_TEXT_CHARS:
         return text
     return f"{text[:MAX_WORKER_TEXT_CHARS]}...[truncated {len(text) - MAX_WORKER_TEXT_CHARS} chars]"
+
+
+def _ensure_office_available(kind: str) -> None:
+    if kind == "word":
+        available = check_word_com()
+        code = ErrorCode.WORD_COM_UNAVAILABLE
+        app_name = "Microsoft Word"
+    else:
+        available = check_excel_com()
+        code = ErrorCode.EXCEL_COM_UNAVAILABLE
+        app_name = "Microsoft Excel"
+    if available:
+        return
+    raise ValidationError(
+        code,
+        f"{app_name} COM is unavailable; run uv run docrt doctor --agent --office-smoke",
+        context={
+            "kind": kind,
+            "application": app_name,
+            "doctor_command": "uv run docrt doctor --agent --office-smoke",
+        },
+    )

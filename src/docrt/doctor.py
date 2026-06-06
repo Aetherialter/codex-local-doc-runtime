@@ -8,6 +8,8 @@ from pathlib import Path
 
 from docrt import core_bridge
 from docrt.config import Config
+from docrt.office_com import check_excel_com as _check_excel_com
+from docrt.office_com import check_word_com as _check_word_com
 
 PYTHON_PACKAGES = {
     "python-docx": "docx",
@@ -30,33 +32,11 @@ def check_import(module_name: str) -> bool:
 
 
 def check_word_com() -> bool:
-    return _check_com("Word.Application")
+    return _check_word_com()
 
 
 def check_excel_com() -> bool:
-    return _check_com("Excel.Application")
-
-
-def _check_com(prog_id: str) -> bool:
-    if sys.platform != "win32":
-        return False
-    try:
-        import pythoncom
-        import win32com.client
-
-        pythoncom.CoInitialize()
-        app = None
-        try:
-            app = win32com.client.DispatchEx(prog_id)
-            return True
-        except Exception:
-            return False
-        finally:
-            if app is not None:
-                app.Quit()
-            pythoncom.CoUninitialize()
-    except Exception:
-        return False
+    return _check_excel_com()
 
 
 def find_poppler_tools(config: Config) -> dict[str, str | None]:

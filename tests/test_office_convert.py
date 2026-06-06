@@ -8,7 +8,7 @@ import pytest
 
 from docrt.config import Config
 from docrt.models import ErrorCode
-from docrt.office_convert import _run_worker
+from docrt.office_convert import _run_worker, docx_to_pdf, xlsx_to_pdf
 from docrt.paths import ValidationError
 
 
@@ -74,3 +74,41 @@ def test_office_worker_timeout_carries_cleanup_context(tmp_path: Path, monkeypat
     assert error.context["worker_stderr"] == "partial err"
     assert error.context["created_office_process_count"] == 1
     assert error.context["office_process_cleanup"] == ["done"]
+
+
+def test_docx_to_pdf_preflights_word_com_before_worker(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "input.docx"
+    source.write_text("x", encoding="utf-8")
+    config = Config(outputs_dir=str(tmp_path / "outputs"), work_dir=str(tmp_path / "work"))
+    monkeypatch.setattr("docrt.office_convert.check_word_com", lambda: False)
+
+    def fail_run_worker(*_args, **_kwargs):
+        raise AssertionError("worker should not run when Word COM is unavailable")
+
+    monkeypatch.setattr("docrt.office_convert._run_worker", fail_run_worker)
+
+    with pytest.raises(ValidationError) as exc_info:
+        docx_to_pdf(source, None, config, "run")
+
+    error = exc_info.value
+    assert error.error_code == ErrorCode.WORD_COM_UNAVAILABLE
+    assert error.context["doctor_command"] == "uv run docrt doctor --agent --office-smoke"
+
+
+def test_xlsx_to_pdf_preflights_excel_com_before_worker(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "input.xlsx"
+    source.write_text("x", encoding="utf-8")
+    config = Config(outputs_dir=str(tmp_path / "outputs"), work_dir=str(tmp_path / "work"))
+    monkeypatch.setattr("docrt.office_convert.check_excel_com", lambda: False)
+
+    def fail_run_worker(*_args, **_kwargs):
+        raise AssertionError("worker should not run when Excel COM is unavailable")
+
+    monkeypatch.setattr("docrt.office_convert._run_worker", fail_run_worker)
+
+    with pytest.raises(ValidationError) as exc_info:
+        xlsx_to_pdf(source, None, config, "run")
+
+    error = exc_info.value
+    assert error.error_code == ErrorCode.EXCEL_COM_UNAVAILABLE
+    assert error.context["application"] == "Microsoft Excel"
