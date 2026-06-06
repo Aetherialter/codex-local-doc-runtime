@@ -54,6 +54,20 @@ Office 的固定运行时工具链。
 - 已用 Windows 临时目录做过 clean clone 模拟演练；迁移到目标机器后仍建议重新执行
   `doctor --agent --office-smoke` 验证本机 Office COM 和 Poppler 状态。
 
+## 架构风险和不适用场景
+
+`docrt` v1.1 依赖 Microsoft Office COM。Office COM 是桌面 GUI 自动化接口，
+不是为高并发、无人值守服务器设计的后台文档服务。Word/Excel 弹窗、激活提示、
+宏安全警告、损坏修复提示或文件锁都可能导致自动化挂起。
+
+v1.1 通过 `doctor`、timeout、结构化错误、日志和 Office 进程清理降低风险，
+但不能彻底消除 Office COM 的脆弱性。生产使用时建议把文档处理任务串行化，
+或限制为低并发，并运行在可人工维护的 Windows 本机、开发机或专用 RPA 虚拟机上。
+
+不建议把 v1.1 直接作为 SaaS 后端、Docker 服务、Linux/macOS 服务、高并发批处理平台
+或无人值守文档转换集群使用。需要这些能力时，应在后续版本引入多后端 fallback、
+队列隔离、LibreOffice/headless 引擎或纯 Python/Rust 只读降级链路。
+
 ## v1.1 支持矩阵
 
 | 能力 | Windows + uv + Office | Windows 无 Office | Linux/macOS 源码运行 | Docker/服务器 |
