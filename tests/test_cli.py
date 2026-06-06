@@ -191,3 +191,15 @@ def test_maintenance_command_writes_state(tmp_path: Path, monkeypatch):
     assert payload["ok"] is True
     assert payload["operation"] == "maintenance"
     assert Path(payload["data"]["state_paths"]["runtime_state"]).exists()
+
+
+def test_job_start_rejects_unsupported_task(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["job-start", "render-pdf"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["started"] is False
+    assert "maintenance" in payload["data"]["supported_tasks"]

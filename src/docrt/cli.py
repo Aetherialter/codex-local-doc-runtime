@@ -19,6 +19,7 @@ from docrt.config import Config
 from docrt.config_cli import config_init, config_set, config_show
 from docrt.doctor import doctor_report
 from docrt.docx_ops import inspect_docx
+from docrt.jobs import job_status, start_job
 from docrt.jsonutil import dump_file, dumps
 from docrt.log_analysis import analyze_logs, recent_errors
 from docrt.maintenance import maintenance_report
@@ -888,6 +889,42 @@ def maintenance_cmd(
         lambda _run_id, cfg, _logger: maintenance_report(cfg, analyze_days=analyze_days),
         config=config,
         backend="maintenance",
+    )
+    _emit(result)
+
+
+@app.command("job-start")
+def job_start_cmd(
+    task: str,
+    days: Annotated[int, typer.Option("--days", min=1)] = 7,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    args = ["--days", str(days)]
+    result = run_operation(
+        "job-start",
+        lambda _run_id, cfg, _logger: start_job(cfg, task, args=args),
+        config=config,
+        backend="jobs",
+    )
+    _emit(result)
+
+
+@app.command("job-status")
+def job_status_cmd(
+    job_id: str,
+    poppler_path: PopplerOpt = None,
+    timeout: TimeoutOpt = None,
+    force_kill_office: ForceKillOpt = False,
+) -> None:
+    config = _config(poppler_path, timeout, force_kill_office)
+    result = run_operation(
+        "job-status",
+        lambda _run_id, cfg, _logger: job_status(cfg, job_id),
+        config=config,
+        backend="jobs",
     )
     _emit(result)
 

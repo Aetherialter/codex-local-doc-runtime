@@ -53,3 +53,16 @@ maintenance pass.
 `maintenance` stores the latest runtime and log-analysis summaries in `state/`
 so the next development pass can start from recent evidence instead of relying
 on memory.
+
+## Background Maintenance Jobs
+
+Use background jobs only for low-risk maintenance tasks:
+
+```powershell
+uv run docrt job-start maintenance
+uv run docrt job-start analyze-logs --days 30
+uv run docrt job-status <job-id>
+```
+
+Document editing and conversion remain foreground operations in this preview so
+users can see the exact JSON result before trusting the output file.
