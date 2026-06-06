@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import json
+import traceback as tb
 from collections.abc import Callable
 from pathlib import Path
 
 from docrt.config import Config
 from docrt.core_bridge import fingerprint, fingerprint_many, plan_batch, search_records
+from docrt.errors import classify_exception, sanitize_text
 from docrt.jsonutil import dump_file
 from docrt.paths import SUPPORTED_EXTENSIONS, validate_input_path
 from docrt.read_ops import read_docx, read_pdf, read_xlsx
+from docrt.recovery import recovery_actions
 
 
 def fingerprint_file(path: str | Path) -> dict[str, object]:
@@ -49,9 +52,32 @@ def batch_read(
     results = []
     for item in plan["items"]:
         path = item["path"]
-        result = cache_read(path, config) if use_cache else _reader_for(Path(path))(path)
-        results.append({"path": str(path), "ok": True, "result": result})
-    return {"count": len(results), "plan": plan, "results": results}
+        try:
+            result = cache_read(path, config) if use_cache else _reader_for(Path(path))(path)
+            results.append({"path": str(path), "ok": True, "result": result})
+        except Exception as exc:
+            error_code = classify_exception(exc).value
+            results.append(
+                {
+                    "path": str(path),
+                    "ok": False,
+                    "error": {
+                        "error_code": error_code,
+                        "error_message": sanitize_text(str(exc)),
+                        "exception_type": type(exc).__name__,
+                        "traceback": sanitize_text(tb.format_exc()),
+                        "recovery_actions": recovery_actions(error_code),
+                    },
+                }
+            )
+    failed_count = sum(1 for result in results if not result["ok"])
+    return {
+        "count": len(results),
+        "success_count": len(results) - failed_count,
+        "failed_count": failed_count,
+        "plan": plan,
+        "results": results,
+    }
 
 
 def batch_inspect(paths: list[str | Path], config: Config) -> dict[str, object]:

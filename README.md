@@ -176,8 +176,11 @@ PDF：
 ```powershell
 uv run docrt inspect-pdf path\to\file.pdf
 uv run docrt read-pdf path\to\file.pdf --output outputs\file.pdf.read.json
+uv run docrt read-pdf path\to\file.pdf --pages 1,3-5
 uv run docrt search-pdf path\to\file.pdf "keyword"
+uv run docrt search-pdf path\to\file.pdf "keyword" --pages 1-10
 uv run docrt render-pdf path\to\file.pdf outputs\file-pages
+uv run docrt render-pdf path\to\file.pdf outputs\file-pages --pages 2
 uv run docrt annotate-pdf path\to\file.pdf path\to\annotations.json outputs\file.annotated.pdf
 ```
 
@@ -205,6 +208,9 @@ uv run docrt batch-inspect path\to\a.docx path\to\b.xlsx --use-cache
 uv run docrt index path\to\a.docx path\to\b.xlsx
 uv run docrt search "keyword"
 ```
+
+`batch-read` 和 `batch-inspect` 会隔离单文件失败，返回 `success_count`、
+`failed_count` 和每个文件的 `ok/error`，不会因为其中一个文件缺失就中断整批。
 
 日志分析与修复建议：
 
@@ -234,6 +240,9 @@ uv run docrt explain-task path\to\task.json
 uv run docrt run-task path\to\task.json
 uv run docrt validate-result path\to\result.json
 ```
+
+`explain-task` 会区分 `supports_native_dry_run` 与计划模式 dry-run。当前只有
+`patch-docx` 和 `patch-xlsx` 是原生 dry-run，其他任务的 dry-run 是“只解释计划，不执行”。
 
 ## 安全编辑闭环
 

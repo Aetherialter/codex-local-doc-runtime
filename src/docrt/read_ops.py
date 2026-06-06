@@ -5,6 +5,7 @@ from typing import Any
 
 from docrt.docx_styles import is_heading_style, paragraph_style_name
 from docrt.paths import ensure_unlocked_for_read, validate_input_path
+from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
 
 
 def read_docx(path: str | Path) -> dict[str, object]:
@@ -73,7 +74,7 @@ def read_docx(path: str | Path) -> dict[str, object]:
     }
 
 
-def read_pdf(path: str | Path) -> dict[str, object]:
+def read_pdf(path: str | Path, *, pages: str | None = None) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
     ensure_unlocked_for_read(input_path)
     try:
@@ -84,14 +85,16 @@ def read_pdf(path: str | Path) -> dict[str, object]:
     document = fitz.open(str(input_path))
     try:
         content_blocks: list[dict[str, object]] = []
-        pages: list[dict[str, Any]] = []
+        page_summaries: list[dict[str, Any]] = []
         total_text_chars = 0
-        for index, page in enumerate(document):
+        selected_indexes = selected_page_indexes(document.page_count, pages)
+        for index in selected_indexes:
+            page = document[index]
             text = page.get_text("text")
             total_text_chars += len(text)
             rect = page.rect
             page_number = index + 1
-            pages.append(
+            page_summaries.append(
                 {
                     "page_number": page_number,
                     "width": rect.width,
@@ -116,9 +119,12 @@ def read_pdf(path: str | Path) -> dict[str, object]:
             "path": str(input_path),
             "metadata": {
                 "page_count": document.page_count,
+                "page_selection": page_selection_metadata(
+                    document.page_count, selected_indexes, pages
+                ),
                 "pdf_metadata": dict(document.metadata or {}),
                 "has_text_layer": total_text_chars > 0,
-                "pages": pages,
+                "pages": page_summaries,
             },
             "content_blocks": content_blocks,
             "tables": [],

@@ -70,6 +70,42 @@ def test_search_pdf_command_outputs_matches(tmp_path: Path):
     assert saved["matches"][0]["page_number"] == 1
 
 
+def test_search_pdf_command_supports_pages_option(tmp_path: Path):
+    input_path = tmp_path / "sample.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "first target")
+    page = document.new_page()
+    page.insert_text((72, 72), "second target")
+    document.save(input_path)
+    document.close()
+
+    result = runner.invoke(app, ["search-pdf", str(input_path), "target", "--pages", "2"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["data"]["count"] == 1
+    assert payload["data"]["page_selection"]["selected_pages"] == [2]
+
+
+def test_read_pdf_command_supports_pages_option(tmp_path: Path):
+    input_path = tmp_path / "sample.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "first page")
+    page = document.new_page()
+    page.insert_text((72, 72), "second page")
+    document.save(input_path)
+    document.close()
+
+    result = runner.invoke(app, ["read-pdf", str(input_path), "--pages", "2"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["data"]["metadata"]["page_selection"]["selected_pages"] == [2]
+    assert len(payload["data"]["content_blocks"]) == 1
+
+
 def test_inspect_xlsx_output_option_writes_explicit_json(tmp_path: Path):
     input_path = tmp_path / "sample.xlsx"
     output_path = tmp_path / "custom" / "xlsx.json"
@@ -135,6 +171,26 @@ def test_batch_fingerprint_command_outputs_json(tmp_path: Path):
     assert payload["operation"] == "batch-fingerprint"
     assert payload["data"]["count"] == 2
     assert payload["data"]["backend"] in {"python", "rust"}
+
+
+def test_batch_read_isolates_per_file_errors(tmp_path: Path):
+    docx_path = tmp_path / "sample.docx"
+    missing_path = tmp_path / "missing.pdf"
+    document = Document()
+    document.add_paragraph("hello docx")
+    document.save(docx_path)
+
+    result = runner.invoke(app, ["batch-read", str(docx_path), str(missing_path)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["count"] == 2
+    assert payload["data"]["success_count"] == 1
+    assert payload["data"]["failed_count"] == 1
+    assert payload["data"]["results"][1]["ok"] is False
+    assert payload["data"]["results"][1]["error"]["error_code"] == "FILE_NOT_FOUND"
+    assert str(tmp_path) not in payload["data"]["results"][1]["error"]["error_message"]
 
 
 def test_clean_command_omits_file_list_by_default(tmp_path: Path, monkeypatch):

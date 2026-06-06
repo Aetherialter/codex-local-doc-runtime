@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from docrt.paths import ensure_unlocked_for_read, validate_input_path, validate_output_path
+from docrt.pdf_pages import page_selection_metadata, selected_page_indexes
 
 
 def inspect_pdf(path: str | Path) -> dict[str, object]:
@@ -40,7 +41,13 @@ def inspect_pdf(path: str | Path) -> dict[str, object]:
         document.close()
 
 
-def render_pdf(path: str | Path, output_dir: str | Path, *, dpi: int = 144) -> dict[str, object]:
+def render_pdf(
+    path: str | Path,
+    output_dir: str | Path,
+    *,
+    dpi: int = 144,
+    pages: str | None = None,
+) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
     ensure_unlocked_for_read(input_path)
     normalized_output = validate_output_path(Path(output_dir) / ".docrt-write-test").parent
@@ -55,17 +62,30 @@ def render_pdf(path: str | Path, output_dir: str | Path, *, dpi: int = 144) -> d
     try:
         zoom = dpi / 72
         matrix = fitz.Matrix(zoom, zoom)
-        for index, page in enumerate(document):
+        selected_indexes = selected_page_indexes(document.page_count, pages)
+        for index in selected_indexes:
+            page = document[index]
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             output = normalized_output / f"page-{index + 1:04d}.png"
             pixmap.save(str(output))
             written.append(str(output))
-        return {"path": str(input_path), "output_dir": str(normalized_output), "pages": written}
+        return {
+            "path": str(input_path),
+            "output_dir": str(normalized_output),
+            "pages": written,
+            "page_selection": page_selection_metadata(document.page_count, selected_indexes, pages),
+        }
     finally:
         document.close()
 
 
-def search_pdf(path: str | Path, query: str, *, preview_size: int = 120) -> dict[str, object]:
+def search_pdf(
+    path: str | Path,
+    query: str,
+    *,
+    preview_size: int = 120,
+    pages: str | None = None,
+) -> dict[str, object]:
     input_path = validate_input_path(path, {".pdf"})
     ensure_unlocked_for_read(input_path)
     if not query:
@@ -79,7 +99,9 @@ def search_pdf(path: str | Path, query: str, *, preview_size: int = 120) -> dict
     matches: list[dict[str, object]] = []
     try:
         normalized_query = query.casefold()
-        for index, page in enumerate(document):
+        selected_indexes = selected_page_indexes(document.page_count, pages)
+        for index in selected_indexes:
+            page = document[index]
             text = page.get_text("text")
             normalized_text = text.casefold()
             start = 0
@@ -107,6 +129,7 @@ def search_pdf(path: str | Path, query: str, *, preview_size: int = 120) -> dict
             "path": str(input_path),
             "query": query,
             "page_count": document.page_count,
+            "page_selection": page_selection_metadata(document.page_count, selected_indexes, pages),
             "count": sum(int(page["count"]) for page in matches),
             "matches": matches,
         }

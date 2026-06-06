@@ -108,6 +108,7 @@ def agent_config_cmd(
 def inspect_docx_cmd(
     path: Path,
     output: OutputOpt = None,
+    pages: Annotated[str | None, typer.Option("--pages")] = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -225,6 +226,7 @@ def inspect_pdf_cmd(
 def read_pdf_cmd(
     path: Path,
     output: OutputOpt = None,
+    pages: Annotated[str | None, typer.Option("--pages")] = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -234,7 +236,7 @@ def read_pdf_cmd(
     output_path = normalize_path(output) if output else None
 
     def handler(_run_id, _cfg, _logger):
-        data = read_pdf(input_path)
+        data = read_pdf(input_path, pages=pages)
         if output_path:
             dump_file(output_path, data)
         return data
@@ -254,6 +256,7 @@ def read_pdf_cmd(
 def render_pdf_cmd(
     input: Path,
     output_dir: Annotated[Path | None, typer.Argument()] = None,
+    pages: Annotated[str | None, typer.Option("--pages")] = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -267,7 +270,7 @@ def render_pdf_cmd(
     )
     result = run_operation(
         "render-pdf",
-        lambda _run_id, _cfg, _logger: render_pdf(input_path, target_dir),
+        lambda _run_id, _cfg, _logger: render_pdf(input_path, target_dir, pages=pages),
         config=config,
         input_path=input_path,
         output_path=target_dir,
@@ -281,6 +284,7 @@ def search_pdf_cmd(
     path: Path,
     query: str,
     output: OutputOpt = None,
+    pages: Annotated[str | None, typer.Option("--pages")] = None,
     poppler_path: PopplerOpt = None,
     timeout: TimeoutOpt = None,
     force_kill_office: ForceKillOpt = False,
@@ -290,7 +294,7 @@ def search_pdf_cmd(
     output_path = normalize_path(output) if output else None
 
     def handler(_run_id, _cfg, _logger):
-        data = search_pdf(input_path, query)
+        data = search_pdf(input_path, query, pages=pages)
         if output_path:
             dump_file(output_path, data)
         return data

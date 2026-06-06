@@ -19,6 +19,11 @@ uv run docrt explain-task task.json
 generated, whether Office COM is required, whether intermediate artifacts may be
 created, and whether every step supports dry-run planning.
 
+`supports_native_dry_run` means the underlying operation can validate and plan
+without writing output files. In this preview, only `patch-docx` and
+`patch-xlsx` are native dry-run operations. Other tasks use plan-only dry-run
+at the task-manifest layer.
+
 ## Common Fields
 
 ```json
@@ -80,9 +85,13 @@ would be executed without modifying documents.
   "task": "search-pdf",
   "input": "examples/fixtures/sample.pdf",
   "query": "sample",
+  "pages": "1,3-5",
   "output": "outputs/tasks/sample.pdf.search.json"
 }
 ```
+
+PDF `read-pdf`, `render-pdf`, and `search-pdf` support `pages` using 1-based
+page numbers such as `"1"`, `"1-3"`, or `"1,3-5"`.
 
 Failures use the same JSON result error fields as direct CLI commands, including
 `error_code`, `error_message`, `log_path`, and `diagnostic_report_path`.

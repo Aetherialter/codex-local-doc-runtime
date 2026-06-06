@@ -85,7 +85,9 @@ def explain_task_manifest(path: str | Path) -> dict[str, object]:
             step["task"] in {"inspect-docx", "inspect-pdf", "inspect-xlsx", "render-pdf"}
             for step in steps
         ),
-        "supports_dry_run": all(_supports_dry_run(step["task"]) for step in steps),
+        "supports_dry_run": True,
+        "supports_native_dry_run": all(_supports_native_dry_run(step["task"]) for step in steps),
+        "dry_run_mode": "plan_only" if bool(manifest.get("dry_run", False)) else "execute",
         "steps": steps,
     }
 
@@ -205,7 +207,11 @@ def _execute_task(
     if task == "read-docx":
         return _write_optional(read_docx(_require_string(manifest, "input")), manifest, config)
     if task == "read-pdf":
-        return _write_optional(read_pdf(_require_string(manifest, "input")), manifest, config)
+        return _write_optional(
+            read_pdf(_require_string(manifest, "input"), pages=_optional_string(manifest, "pages")),
+            manifest,
+            config,
+        )
     if task == "read-xlsx":
         return _write_optional(read_xlsx(_require_string(manifest, "input")), manifest, config)
     if task == "patch-docx":
@@ -253,10 +259,14 @@ def _execute_task(
         output_dir = manifest.get("output_dir") or default_render_output_dir(
             input_path, config.outputs_path
         )
-        return render_pdf(input_path, output_dir)
+        return render_pdf(input_path, output_dir, pages=_optional_string(manifest, "pages"))
     if task == "search-pdf":
         return _write_optional(
-            search_pdf(_require_string(manifest, "input"), _require_string(manifest, "query")),
+            search_pdf(
+                _require_string(manifest, "input"),
+                _require_string(manifest, "query"),
+                pages=_optional_string(manifest, "pages"),
+            ),
             manifest,
             config,
         )
@@ -287,6 +297,7 @@ def _task_plan(task: str, manifest: dict[str, Any]) -> dict[str, object]:
         "patch",
         "expect",
         "query",
+        "pages",
         "dry_run",
     ):
         if key in manifest:
@@ -356,8 +367,9 @@ def _explain_step(manifest: dict[str, Any], *, index: int) -> dict[str, object]:
         "patches": _unique(patches),
         "expects": _unique(expects),
         "requires_office_com": _requires_office_com(task),
-        "supports_dry_run": _supports_dry_run(task),
-        "supports_native_dry_run": task in {"patch-docx", "patch-xlsx"},
+        "supports_dry_run": True,
+        "supports_native_dry_run": _supports_native_dry_run(task),
+        "dry_run_mode": "native" if _supports_native_dry_run(task) else "plan_only",
         "dry_run": bool(manifest.get("dry_run", False)),
     }
 
@@ -375,8 +387,8 @@ def _requires_office_com(task: str) -> bool:
     return task in {"docx-to-pdf", "xlsx-to-pdf"}
 
 
-def _supports_dry_run(task: str) -> bool:
-    return task in SUPPORTED_TASKS
+def _supports_native_dry_run(task: str) -> bool:
+    return task in {"patch-docx", "patch-xlsx"}
 
 
 def _unique(values: list[str]) -> list[str]:
@@ -444,6 +456,15 @@ def _classify(exc: Exception) -> ErrorCode:
 
 def _require_string(manifest: dict[str, Any], key: str) -> str:
     value = manifest.get(key)
+    if not isinstance(value, str):
+        raise ValidationError(ErrorCode.VALIDATION_FAILED, f"{key} must be a string")
+    return value
+
+
+def _optional_string(manifest: dict[str, Any], key: str) -> str | None:
+    value = manifest.get(key)
+    if value is None:
+        return None
     if not isinstance(value, str):
         raise ValidationError(ErrorCode.VALIDATION_FAILED, f"{key} must be a string")
     return value

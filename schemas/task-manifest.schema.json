@@ -16,6 +16,7 @@
         "patch": { "type": "string" },
         "expect": { "type": "string" },
         "query": { "type": "string" },
+        "pages": { "type": "string" },
         "dry_run": { "type": "boolean" }
       },
       "additionalProperties": true
@@ -42,6 +43,7 @@
               "patch": { "type": "string" },
               "expect": { "type": "string" },
               "query": { "type": "string" },
+              "pages": { "type": "string" },
               "dry_run": { "type": "boolean" }
             },
             "additionalProperties": true

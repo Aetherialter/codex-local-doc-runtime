@@ -332,6 +332,36 @@ def test_run_task_search_pdf_writes_output(tmp_path: Path):
     assert output_path.exists()
 
 
+def test_run_task_search_pdf_pages_option(tmp_path: Path):
+    pdf_path = tmp_path / "sample.pdf"
+    output_path = tmp_path / "search.json"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "first target")
+    page = document.new_page()
+    page.insert_text((72, 72), "second target")
+    document.save(pdf_path)
+    document.close()
+    task_path = tmp_path / "task.json"
+    task_path.write_text(
+        json.dumps(
+            {
+                "task": "search-pdf",
+                "input": str(pdf_path),
+                "query": "target",
+                "pages": "2",
+                "output": str(output_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_task_manifest(task_path, Config.load(project_root=tmp_path), "test-run")
+
+    assert result["result"]["count"] == 1
+    assert result["result"]["page_selection"]["selected_pages"] == [2]
+
+
 def test_run_task_multi_step_with_reference(tmp_path: Path):
     input_path = tmp_path / "sample.xlsx"
     patch_path = tmp_path / "patch.json"
@@ -461,8 +491,12 @@ def test_explain_task_manifest_reports_agent_effects(tmp_path: Path):
     assert str(patch_path) in result["patches"]
     assert result["requires_office_com"] is False
     assert result["supports_dry_run"] is True
+    assert result["supports_native_dry_run"] is False
+    assert result["dry_run_mode"] == "execute"
     assert result["steps"][0]["supports_native_dry_run"] is True
+    assert result["steps"][0]["dry_run_mode"] == "native"
     assert result["steps"][1]["supports_native_dry_run"] is False
+    assert result["steps"][1]["dry_run_mode"] == "plan_only"
 
 
 def test_explain_task_manifest_reports_office_requirement(tmp_path: Path):

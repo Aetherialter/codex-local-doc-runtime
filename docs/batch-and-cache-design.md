@@ -18,6 +18,10 @@ uv run docrt search "keyword"
 `fingerprint`, `batch-fingerprint`, and indexed `search` use the Rust core when
 available and fall back to Python when the native extension is not built.
 
+`batch-read` and `batch-inspect` isolate per-file failures. A missing or invalid
+file produces an item-level `error` object and increments `failed_count`, while
+successful files still return their results.
+
 ## Cache Location
 
 Read caches are stored under:
